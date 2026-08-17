@@ -1,29 +1,36 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'providers/navigation_provider.dart';
-import 'screens/root_shell.dart';
+import 'package:flutter_redux/flutter_redux.dart';
+import 'package:redux/redux.dart';
+
+import 'core/di/service_locator.dart';
+import 'core/routing/app_router.dart';
+import 'store.dart';
 import 'theme/app_theme.dart';
 
-void main() {
-  runApp(const PholdersAdminApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await setupServiceLocator();
+  final store = await createAppStore();
+
+  runApp(PholdersAdminApp(store: store));
 }
 
 class PholdersAdminApp extends StatelessWidget {
-  const PholdersAdminApp({super.key});
+  const PholdersAdminApp({super.key, required this.store});
+
+  final Store<AppState> store;
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => NavigationProvider()),
-      ],
-      child: MaterialApp(
+    final router = createRouter(store);
+
+    return StoreProvider<AppState>(
+      store: store,
+      child: MaterialApp.router(
         title: 'Pholders Admin',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
-        // RootShell watches NavigationProvider and swaps in the screen
-        // matching the active sidebar route.
-        home: const RootShell(),
+        routerConfig: router,
       ),
     );
   }

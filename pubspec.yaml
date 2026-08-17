@@ -9,10 +9,32 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  provider: ^6.1.2
   fl_chart: ^0.68.0
   google_fonts: ^6.2.1
   intl: ^0.19.0
+
+  # Versions below are pinned to match the doctor/pharmacy app so both clients
+  # share one set of auth conventions against the same API.
+
+  # Navigation - declarative URL-based routing, so the auth redirect also
+  # covers a hand-typed URL and a browser refresh.
+  go_router: ^13.2.0
+
+  # State management - Redux as chosen by the team
+  flutter_redux: ^0.10.0
+  redux: ^5.0.0
+
+  # HTTP client for REST API
+  dio: ^5.4.0
+
+  # Secure token storage
+  flutter_secure_storage: ^9.0.0
+
+  # Dependency injection
+  get_it: ^7.6.7
+
+  # Equatable for value equality in state/models
+  equatable: ^2.0.5
 
 dev_dependencies:
   flutter_test:

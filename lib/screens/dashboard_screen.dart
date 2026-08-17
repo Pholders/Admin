@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_redux/flutter_redux.dart';
 import 'package:intl/intl.dart';
+
+import 'package:pholders_admin/store.dart';
+import '../core/utils/greeting.dart';
 import '../theme/app_colors.dart';
 import '../widgets/shell/app_shell.dart';
 import '../widgets/dashboard/stat_card.dart';
@@ -14,6 +18,7 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final today = DateFormat('EEEE, d MMMM').format(DateTime.now());
+    final greeting = timeOfDayGreeting();
 
     return AppShell(
       currentPage: 'Dashboard',
@@ -42,9 +47,20 @@ class DashboardScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
-            const Text(
-              'Good Morning Sam',
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+            // Real name from the store, written when the admin's code was
+            // verified and reloaded from secure storage on refresh.
+            StoreConnector<AppState, String?>(
+              converter: (store) => store.state.authState.userName,
+              builder: (context, userName) {
+                final name = userName?.trim() ?? '';
+                return Text(
+                  name.isEmpty ? greeting : '$greeting $name',
+                  style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary),
+                );
+              },
             ),
             const SizedBox(height: 20),
             const StatCardsRow(),

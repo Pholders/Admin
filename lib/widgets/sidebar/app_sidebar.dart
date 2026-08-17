@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_redux/flutter_redux.dart';
+
+import 'package:pholders_admin/store.dart';
 import '../../models/nav_item.dart';
-import '../../providers/navigation_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../core/utils/logout.dart';
 
 class AppSidebar extends StatelessWidget {
   const AppSidebar({super.key});
@@ -49,36 +51,39 @@ class AppSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final nav = context.watch<NavigationProvider>();
-
-    return Container(
-      width: 260,
-      color: AppColors.sidebarBackground,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _Logo(),
-          const SizedBox(height: 32),
-          Expanded(
-            child: ListView(
-              children: [
-                for (final section in _sections) ...[
-                  _SectionHeader(section: section),
-                  const SizedBox(height: 4),
-                  for (final item in section.items)
-                    _NavRow(
-                      item: item,
-                      selected: nav.currentRoute == item.route,
-                      onTap: () => nav.goTo(item.route),
-                    ),
-                  const SizedBox(height: 20),
+    return StoreConnector<AppState, String>(
+      converter: (store) => store.state.navigationState.currentRoute,
+      distinct: true,
+      builder: (context, currentRoute) => Container(
+        width: 260,
+        color: AppColors.sidebarBackground,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Logo(),
+            const SizedBox(height: 32),
+            Expanded(
+              child: ListView(
+                children: [
+                  for (final section in _sections) ...[
+                    _SectionHeader(section: section),
+                    const SizedBox(height: 4),
+                    for (final item in section.items)
+                      _NavRow(
+                        item: item,
+                        selected: currentRoute == item.route,
+                        onTap: () => StoreProvider.of<AppState>(context)
+                            .dispatch(NavigateToAction(item.route)),
+                      ),
+                    const SizedBox(height: 20),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-          _LogoutButton(),
-        ],
+            _LogoutButton(),
+          ],
+        ),
       ),
     );
   }
@@ -172,27 +177,35 @@ class _NavRow extends StatelessWidget {
 class _LogoutButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(
-        color: AppColors.contentBackground,
+    // Was inert: a bare Container with no gesture handler, so the button
+    // looked live but did nothing.
+    return Material(
+      color: AppColors.contentBackground,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
         borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Text(
-            'Logout',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-            ),
+        // Best-effort by design: the store is cleared and the user is routed
+        // out even if revoking the session server-side fails.
+        onTap: () => performLogout(context),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Logout',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              SizedBox(width: 8),
+              Icon(Icons.logout, size: 16, color: AppColors.textPrimary),
+            ],
           ),
-          SizedBox(width: 8),
-          Icon(Icons.logout, size: 16, color: AppColors.textPrimary),
-        ],
+        ),
       ),
     );
   }

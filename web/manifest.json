@@ -1,11 +1,11 @@
 {
-    "name": "admin_panel_app",
-    "short_name": "admin_panel_app",
+    "name": "PHolders Admin",
+    "short_name": "PHolders Admin",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "PHolders admin panel.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

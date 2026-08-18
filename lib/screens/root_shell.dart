@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/navigation_provider.dart';
+import 'package:flutter_redux/flutter_redux.dart';
+
+import 'package:pholders_admin/store.dart';
 import 'all_orders_screen.dart';
 import 'billing_payments_screen.dart';
 import 'dashboard_screen.dart';
@@ -21,33 +22,37 @@ class RootShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final route = context.watch<NavigationProvider>().currentRoute;
-
-    switch (route) {
-      case 'dashboard':
-        return const DashboardScreen();
-      case 'patients':
-        return const PatientsScreen();
-      case 'all_orders':
-        return const AllOrdersScreen();
-      case 'returns':
-        return const ReturnsScreen();
-      case 'doctors':
-        return const DoctorsScreen();
-      case 'pharmacies':
-        return const PharmaciesScreen();
-      case 'tracking':
-        return const TrackingScreen();
-      case 'billing':
-        return const BillingPaymentsScreen();
-      case 'settings':
-        return const SettingsScreen();
-      case 'payment_gateways':
-        return const PaymentGatewayScreen();
-      case 'help_center':
-        return const HelpCenterScreen();
-      default:
-        return const DashboardScreen();
-    }
+    return StoreConnector<AppState, String>(
+      converter: (store) => store.state.navigationState.currentRoute,
+      distinct: true,
+      builder: (context, route) {
+        switch (route) {
+          case 'dashboard':
+            return const DashboardScreen();
+          case 'patients':
+            return const PatientsScreen();
+          case 'all_orders':
+            return const AllOrdersScreen();
+          case 'returns':
+            return const ReturnsScreen();
+          case 'doctors':
+            return const DoctorsScreen();
+          case 'pharmacies':
+            return const PharmaciesScreen();
+          case 'tracking':
+            return const TrackingScreen();
+          case 'billing':
+            return const BillingPaymentsScreen();
+          case 'settings':
+            return const SettingsScreen();
+          case 'payment_gateways':
+            return const PaymentGatewayScreen();
+          case 'help_center':
+            return const HelpCenterScreen();
+          default:
+            return const DashboardScreen();
+        }
+      },
+    );
   }
 }

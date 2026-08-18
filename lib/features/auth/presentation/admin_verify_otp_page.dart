@@ -138,7 +138,10 @@ class _AdminVerifyOtpPageState extends State<AdminVerifyOtpPage> {
       builder: (context, state) {
         return AuthScaffold(
           maxWidth: 460,
-          icon: Icons.mark_email_read_outlined,
+          logo: Image.asset(
+  'assets/images/logo.png',
+  fit: BoxFit.contain,
+),
           title: 'Check your email',
           subtitle: email == null
               ? 'Enter the 6-digit code we sent you.'

@@ -151,14 +151,14 @@ class AuthNotice extends StatelessWidget {
 class AuthScaffold extends StatelessWidget {
   const AuthScaffold({
     super.key,
-    required this.icon,
+    required this.logo,
     required this.title,
     required this.subtitle,
     required this.children,
     this.maxWidth = 420,
   });
 
-  final IconData icon;
+  final Widget logo;
   final String title;
   final String subtitle;
   final List<Widget> children;
@@ -170,7 +170,10 @@ class AuthScaffold extends StatelessWidget {
       backgroundColor: AppColors.pageBackground,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 48,
+          ),
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: maxWidth),
             child: Container(
@@ -178,7 +181,9 @@ class AuthScaffold extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.cardBackground,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppColors.divider),
+                border: Border.all(
+                  color: AppColors.divider,
+                ),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -186,15 +191,21 @@ class AuthScaffold extends StatelessWidget {
                 children: [
                   Center(
                     child: Container(
-                      padding: const EdgeInsets.all(14),
+                      width: 72,
+                      height: 72,
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: AppColors.activeNavBackground,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(icon, color: AppColors.primaryDark, size: 28),
+                      child: ClipOval(
+                        child: logo,
+                      ),
                     ),
                   ),
+
                   const SizedBox(height: 20),
+
                   Text(
                     title,
                     textAlign: TextAlign.center,
@@ -204,7 +215,9 @@ class AuthScaffold extends StatelessWidget {
                       color: AppColors.textPrimary,
                     ),
                   ),
+
                   const SizedBox(height: 8),
+
                   Text(
                     subtitle,
                     textAlign: TextAlign.center,
@@ -214,7 +227,9 @@ class AuthScaffold extends StatelessWidget {
                       height: 1.5,
                     ),
                   ),
+
                   const SizedBox(height: 28),
+
                   ...children,
                 ],
               ),

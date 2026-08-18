@@ -8,6 +8,8 @@ import '../../../theme/app_colors.dart';
 import '../data/models/admin_login_session.dart';
 import 'widgets/auth_widgets.dart';
 
+
+
 /// Admin sign-in, step one of two.
 ///
 /// Submitting does not sign anyone in: `/users/admin/login` only checks the
@@ -66,7 +68,12 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
         return Form(
           key: _formKey,
           child: AuthScaffold(
-            icon: Icons.shield_outlined,
+            logo: Image.asset(
+  'assets/images/logo.png',
+  height: 64,
+  width: 64,
+  fit: BoxFit.contain,
+),
             title: 'Admin sign-in',
             subtitle: 'Enter your credentials. We will email you a 6-digit '
                 'code to finish signing in.',

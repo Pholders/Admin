@@ -64,6 +64,7 @@ class _DoctorsScreenState extends State<DoctorsScreen> {
     return AppShell(
       currentPage: 'Doctors',
       body: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: kTableActionMenuClearance),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

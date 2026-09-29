@@ -1,6 +1,22 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 
+/// Scroll room reserved below a table whose rows open an actions menu.
+///
+/// Flutter clamps a [PopupMenuButton]'s menu inside the window rather than
+/// letting it run off the bottom, so a menu opened on one of the last rows is
+/// pinned to the window edge and paints over the rows above it - including the
+/// row it belongs to. Reserving a menu's height of scrolling below the table
+/// means the last row can always be scrolled clear of the edge, so the menu
+/// opens downward into empty space instead.
+///
+/// This is padding *inside* the scroll view, so it costs nothing visually
+/// until the content is long enough to scroll.
+///
+/// Sized for the tallest menu in the app: four items plus the menu's own
+/// vertical padding.
+const double kTableActionMenuClearance = 220;
+
 /// Fixed-width header cell. Using fixed widths (instead of Expanded/flex)
 /// keeps header and row cells pixel-aligned even when the table scrolls
 /// horizontally on narrow screens.

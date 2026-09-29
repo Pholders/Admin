@@ -155,6 +155,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
     return AppShell(
       currentPage: 'Help Center',
       body: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: kTableActionMenuClearance),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

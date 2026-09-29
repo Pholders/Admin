@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:pholders_admin/store.dart';
 import '../core/utils/greeting.dart';
 import '../theme/app_colors.dart';
+import '../widgets/common/table_cell.dart';
 import '../widgets/shell/app_shell.dart';
 import '../widgets/dashboard/stat_card.dart';
 import '../widgets/dashboard/activity_trend_card.dart';
@@ -23,6 +24,7 @@ class DashboardScreen extends StatelessWidget {
     return AppShell(
       currentPage: 'Dashboard',
       body: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: kTableActionMenuClearance),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

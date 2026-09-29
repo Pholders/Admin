@@ -51,6 +51,7 @@ class _ReturnsScreenState extends State<ReturnsScreen> {
     return AppShell(
       currentPage: 'Prescriptions',
       body: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: kTableActionMenuClearance),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

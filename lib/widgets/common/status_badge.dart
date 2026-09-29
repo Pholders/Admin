@@ -42,6 +42,8 @@ class StatusBadge extends StatelessWidget {
         return const Color(0xFF8A97A0);
       case 'suspended':
       case 'blocked':
+      case 'inactive':
+      case 'terminated':
         return const Color(0xFF8A5A3B);
       case 'draft':
         return AppColors.textMuted;

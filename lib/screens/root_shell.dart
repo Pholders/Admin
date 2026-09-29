@@ -7,6 +7,7 @@ import 'billing_payments_screen.dart';
 import 'dashboard_screen.dart';
 import 'doctors_screen.dart';
 import 'help_center_screen.dart';
+import 'partnerships_screen.dart';
 import 'patients_screen.dart';
 import 'payment_gateway_screen.dart';
 import 'pharmacies_screen.dart';
@@ -39,6 +40,8 @@ class RootShell extends StatelessWidget {
             return const DoctorsScreen();
           case 'pharmacies':
             return const PharmaciesScreen();
+          case 'partnerships':
+            return const PartnershipsScreen();
           case 'tracking':
             return const TrackingScreen();
           case 'billing':

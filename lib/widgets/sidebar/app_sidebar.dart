@@ -25,6 +25,13 @@ class AppSidebar extends StatelessWidget {
       ],
     ),
     const NavSection(
+      title: 'Partnerships',
+      icon: Icons.handshake_outlined,
+      items: [
+        NavItem(label: 'Groups & agreements', route: 'partnerships'),
+      ],
+    ),
+    const NavSection(
       title: 'Prescriptions',
       icon: Icons.medication_outlined,
       items: [

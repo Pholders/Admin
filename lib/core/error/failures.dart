@@ -21,3 +21,14 @@ class ValidationFailure extends Failure {
   const ValidationFailure([String message = 'Please provide valid credentials'])
       : super(message);
 }
+
+/// The stored token was rejected by the API.
+///
+/// Separate from [ServerFailure] because the only recovery is to sign in
+/// again — middleware turns this into a `SessionExpiredAction`, which routes
+/// the admin back to the login page.
+class SessionExpiredFailure extends Failure {
+  const SessionExpiredFailure(
+      [String message = 'Your session has expired. Please sign in again.'])
+      : super(message);
+}

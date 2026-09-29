@@ -6,10 +6,13 @@ import '../features/auth/domain/repositories/auth_repository.dart';
 import '../features/auth/domain/usecases/admin_login_usecase.dart';
 import '../features/auth/domain/usecases/restore_session_usecase.dart';
 import '../features/auth/domain/usecases/verify_admin_otp_usecase.dart';
+import '../features/partnerships/domain/usecases/partnership_usecases.dart';
 import 'state/app_state.dart';
 import 'middleware/auth_middleware.dart';
+import 'middleware/partnership_middleware.dart';
 import 'reducers/app_reducer.dart';
 import 'state/auth_state.dart';
+import 'state/partnerships_state.dart';
 
 /// Builds the application's Redux store after dependencies are registered.
 Future<Store<AppState>> createAppStore() async {
@@ -33,12 +36,28 @@ Future<Store<AppState>> createAppStore() async {
     authRepository: sl<AuthRepository>(),
   );
 
+  final partnershipMiddleware = PartnershipMiddleware(
+    loadPharmacyDirectory: sl<LoadPharmacyDirectoryUseCase>(),
+    loadPartnershipOverview: sl<LoadPartnershipOverviewUseCase>(),
+    createGroup: sl<CreateGroupUseCase>(),
+    updateGroup: sl<UpdateGroupUseCase>(),
+    assignPharmacyToGroup: sl<AssignPharmacyToGroupUseCase>(),
+    removePharmacyFromGroup: sl<RemovePharmacyFromGroupUseCase>(),
+    movePharmacyToGroup: sl<MovePharmacyToGroupUseCase>(),
+    createAgreement: sl<CreateAgreementUseCase>(),
+    setAgreementStatus: sl<SetAgreementStatusUseCase>(),
+  );
+
   return Store<AppState>(
     appReducer,
     initialState: AppState(
       authState: initialAuth,
       navigationState: AppState.initial().navigationState,
+      partnershipsState: PartnershipsState.initial(),
     ),
-    middleware: authMiddleware.middleware,
+    middleware: [
+      ...authMiddleware.middleware,
+      ...partnershipMiddleware.middleware,
+    ],
   );
 }

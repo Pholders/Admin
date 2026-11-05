@@ -7,6 +7,7 @@ import '../../features/auth/domain/usecases/admin_login_usecase.dart';
 import '../../features/auth/domain/usecases/restore_session_usecase.dart';
 import '../../features/auth/domain/usecases/verify_admin_otp_usecase.dart';
 import '../constants/app_constants.dart';
+import '../network/admin_api.dart';
 import '../network/api_client.dart';
 
 /// Global service locator instance. Access anywhere via [sl<T>()].
@@ -20,6 +21,13 @@ Future<void> setupServiceLocator() async {
 
   sl.registerLazySingleton<FlutterSecureStorage>(
       () => const FlutterSecureStorage());
+
+  sl.registerLazySingleton<AdminApi>(
+    () => AdminApi(
+      apiClient: sl<ApiClient>(),
+      secureStorage: sl<FlutterSecureStorage>(),
+    ),
+  );
 
   sl.registerLazySingleton<AuthRepository>(
     () => AuthRepositoryImpl(

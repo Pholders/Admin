@@ -5,8 +5,16 @@ class StatCardData {
   final String label;
   final String value;
   final IconData icon;
-  final String? actionLabel; // e.g. "View requests" — shown as a small link under the value
+
+  /// What clicking the card does, e.g. "View all doctors". Shown as the
+  /// card's tooltip, not as text on the card.
+  final String? actionLabel;
+
+  /// Makes the whole card clickable.
   final VoidCallback? onAction;
+
+  /// Marks the card as the filter currently applied to the table below.
+  final bool selected;
 
   const StatCardData({
     required this.label,
@@ -14,22 +22,29 @@ class StatCardData {
     required this.icon,
     this.actionLabel,
     this.onAction,
+    this.selected = false,
   });
 }
 
-class StatCard extends StatelessWidget {
+class StatCard extends StatefulWidget {
   final StatCardData data;
   const StatCard({super.key, required this.data});
 
   @override
+  State<StatCard> createState() => _StatCardState();
+}
+
+class _StatCardState extends State<StatCard> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
+    final data = widget.data;
+    final clickable = data.onAction != null;
+    final radius = BorderRadius.circular(16);
+
+    final content = Padding(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primaryLight.withOpacity(0.5), width: 1.4),
-      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -44,76 +59,60 @@ class StatCard extends StatelessWidget {
             child: Icon(data.icon, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                data.label,
-                style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                data.value,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  data.label,
+                  style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
                 ),
-              ),
-              if (data.actionLabel != null) ...[
                 const SizedBox(height: 2),
-                GestureDetector(
-                  onTap: data.onAction,
-                  child: Text(
-                    data.actionLabel!,
-                    style: const TextStyle(
-                      fontSize: 10.5,
-                      color: AppColors.primaryDark,
-                      fontWeight: FontWeight.w600,
-                      decoration: TextDecoration.underline,
-                    ),
+                Text(
+                  data.value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
                   ),
                 ),
               ],
-            ],
+            ),
           ),
         ],
       ),
     );
-  }
-}
 
-class StatCardsRow extends StatelessWidget {
-  const StatCardsRow({super.key});
-
-  static const List<StatCardData> _stats = [
-    StatCardData(label: 'Doctors', value: '128', icon: Icons.person_outline),
-    StatCardData(label: 'Pharmacies', value: '128', icon: Icons.local_pharmacy_outlined),
-    StatCardData(label: 'Active prescriptions', value: '128', icon: Icons.medication_outlined),
-    StatCardData(label: 'Orders today', value: '128', icon: Icons.receipt_long_outlined),
-    StatCardData(label: 'Revenue', value: 'R20000', icon: Icons.bar_chart_outlined),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Wrap on narrow widths, single row of 5 on wide screens.
-        return Wrap(
-          spacing: 14,
-          runSpacing: 14,
-          children: [
-            for (final stat in _stats)
-              SizedBox(
-                width: constraints.maxWidth > 900
-                    ? (constraints.maxWidth - 14 * 4) / 5
-                    : 220,
-                child: StatCard(data: stat),
-              ),
-          ],
-        );
-      },
+    final card = Material(
+      color: data.selected
+          ? AppColors.activeNavBackground.withValues(alpha: 0.55)
+          : AppColors.cardBackground,
+      shape: RoundedRectangleBorder(
+        borderRadius: radius,
+        side: BorderSide(
+          // A clickable card firms up its border on hover; the selected
+          // filter's card keeps it.
+          color: data.selected || _hovered
+              ? AppColors.primary
+              : AppColors.primaryLight.withValues(alpha: 0.5),
+          width: data.selected ? 1.8 : 1.4,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: clickable
+          ? InkWell(
+              onTap: data.onAction,
+              onHover: (h) => setState(() => _hovered = h),
+              hoverColor: AppColors.activeNavBackground.withValues(alpha: 0.45),
+              splashColor: AppColors.activeNavBackground,
+              highlightColor: AppColors.activeNavBackground.withValues(alpha: 0.6),
+              child: content,
+            )
+          : content,
     );
+
+    if (!clickable || data.actionLabel == null) return card;
+    return Tooltip(message: data.actionLabel!, waitDuration: const Duration(milliseconds: 400), child: card);
   }
 }

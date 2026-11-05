@@ -7,7 +7,8 @@ import '../../theme/app_colors.dart';
 class AppTableHeaderCell extends StatelessWidget {
   final String label;
   final double width;
-  const AppTableHeaderCell({super.key, required this.label, required this.width});
+  const AppTableHeaderCell(
+      {super.key, required this.label, required this.width});
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +16,10 @@ class AppTableHeaderCell extends StatelessWidget {
       width: width,
       child: Text(
         label,
-        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+        style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -34,20 +38,27 @@ class AppTableCell extends StatelessWidget {
 
 /// Wraps a header row + data rows in a horizontally-scrollable region so
 /// wide tables (7-8 columns) never get visually crushed on smaller windows.
+///
+/// With [stickyHeader], the table fills the height it is given: the header
+/// row stays in place and only the rows scroll beneath it. The parent must
+/// then give it a bounded height (e.g. inside an [Expanded]).
 class ScrollableTable extends StatelessWidget {
   final Widget header;
   final List<Widget> rows;
   final double minWidth;
+  final bool stickyHeader;
 
   const ScrollableTable({
     super.key,
     required this.header,
     required this.rows,
     required this.minWidth,
+    this.stickyHeader = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (stickyHeader) return _buildSticky();
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: ConstrainedBox(
@@ -61,6 +72,40 @@ class ScrollableTable extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  /// Header and rows share one horizontal scroll, so the columns stay
+  /// aligned; the rows alone scroll vertically.
+  Widget _buildSticky() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width =
+            constraints.maxWidth > minWidth ? constraints.maxWidth : minWidth;
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: width,
+            height: constraints.maxHeight,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                header,
+                const Divider(height: 24),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: rows.length,
+                    itemBuilder: (context, i) => Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: rows[i],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

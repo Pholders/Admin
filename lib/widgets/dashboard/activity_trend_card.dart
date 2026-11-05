@@ -1,7 +1,16 @@
+import 'dart:math' as math;
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import '../../theme/app_colors.dart';
 
+import 'package:pholders_admin/store.dart';
+import '../../theme/app_colors.dart';
+import '../admin/admin_format.dart';
+import '../admin/admin_ui.dart';
+
+/// Prescriptions and orders created per day, month or year, from
+/// `GET /admin/dashboard/activity`. The server returns every bucket, empty
+/// ones as 0.
 class ActivityTrendCard extends StatefulWidget {
   const ActivityTrendCard({super.key});
 
@@ -10,15 +19,13 @@ class ActivityTrendCard extends StatefulWidget {
 }
 
 class _ActivityTrendCardState extends State<ActivityTrendCard> {
-  int _rangeIndex = 1; // 0 Daily, 1 Monthly, 2 Yearly
+  static const _ranges = ['daily', 'monthly', 'yearly'];
+  String _range = 'monthly';
 
-  static const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  // (prescriptions, orders) sample values per month.
-  static const _values = [
-    [55.0, 12.0], [58.0, 10.0], [56.0, 11.0], [57.0, 10.0], [30.0, 8.0],
-    [58.0, 11.0], [57.0, 10.0], [56.0, 11.0], [58.0, 10.0], [57.0, 11.0],
-    [58.0, 10.0], [56.0, 11.0],
-  ];
+  void _select(int i) {
+    setState(() => _range = _ranges[i]);
+    loadAdmin(context, AdminResource.dashboardActivity, params: {'range': _range});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,10 +45,7 @@ class _ActivityTrendCardState extends State<ActivityTrendCard> {
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
               ),
               const Spacer(),
-              _RangeToggle(
-                selectedIndex: _rangeIndex,
-                onChanged: (i) => setState(() => _rangeIndex = i),
-              ),
+              _RangeToggle(selectedIndex: _ranges.indexOf(_range), onChanged: _select),
               const SizedBox(width: 8),
               const Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.textSecondary),
             ],
@@ -49,68 +53,34 @@ class _ActivityTrendCardState extends State<ActivityTrendCard> {
           const SizedBox(height: 20),
           SizedBox(
             height: 220,
-            child: BarChart(
-              BarChartData(
-                maxY: 80,
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  horizontalInterval: 20,
-                  getDrawingHorizontalLine: (v) => FlLine(color: AppColors.divider, strokeWidth: 1),
-                ),
-                borderData: FlBorderData(show: false),
-                titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 30,
-                      interval: 20,
-                      getTitlesWidget: (value, meta) => Text(
-                        value.toInt().toString(),
-                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-                      ),
-                    ),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        final i = value.toInt();
-                        if (i < 0 || i >= _months.length) return const SizedBox.shrink();
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(_months[i], style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                barGroups: [
-                  for (var i = 0; i < _values.length; i++)
-                    BarChartGroupData(
-                      x: i,
-                      barRods: [
-                        BarChartRodData(
-                          toY: _values[i][0] + _values[i][1],
-                          width: 14,
-                          borderRadius: BorderRadius.circular(4),
-                          rodStackItems: [
-                            BarChartRodStackItem(0, _values[i][1], AppColors.chartTealLight),
-                            BarChartRodStackItem(_values[i][1], _values[i][0] + _values[i][1], AppColors.chartTealDark),
-                          ],
-                        ),
-                      ],
-                    ),
-                ],
-              ),
+            child: AdminResourceBuilder(
+              resource: AdminResource.dashboardActivity,
+              load: {'range': _range},
+              builder: (context, data) {
+                if (!data.hasData) {
+                  return Center(
+                    child: data.hasError
+                        ? ErrorPanel(
+                            message: data.error!,
+                            onRetry: () => reloadAdmin(context, AdminResource.dashboardActivity))
+                        : const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.primary)),
+                  );
+                }
+                return _Chart(
+                  buckets: recordsOf(mapOf(data.data)['buckets']),
+                  range: _range,
+                  reloading: data.isLoading,
+                );
+              },
             ),
           ),
           const SizedBox(height: 12),
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
+            children: [
               _LegendDot(color: AppColors.chartTealDark, label: 'Prescriptions'),
               SizedBox(width: 20),
               _LegendDot(color: AppColors.chartTealLight, label: 'Orders'),
@@ -118,6 +88,136 @@ class _ActivityTrendCardState extends State<ActivityTrendCard> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _Chart extends StatelessWidget {
+  final List<Map<String, dynamic>> buckets;
+  final String range;
+  final bool reloading;
+
+  const _Chart({required this.buckets, required this.range, required this.reloading});
+
+  /// A round axis step giving about four gridlines: 1, 2, 5, 10, 20, 50…
+  static double _step(double max) {
+    if (max <= 4) return 1;
+    final raw = max / 4;
+    final magnitude = math.pow(10, (math.log(raw) / math.ln10).floor()).toDouble();
+    for (final m in [1, 2, 5, 10]) {
+      if (m * magnitude >= raw) return m * magnitude;
+    }
+    return 10 * magnitude;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final prescriptions = [for (final b in buckets) (numOf(b['prescriptions']) ?? 0).toDouble()];
+    final orders = [for (final b in buckets) (numOf(b['orders']) ?? 0).toDouble()];
+    final peak = [for (var i = 0; i < buckets.length; i++) prescriptions[i] + orders[i]]
+        .fold<double>(0, math.max);
+    final step = _step(peak);
+    final maxY = math.max(step * 4, (peak / step).ceil() * step);
+
+    // Thirty daily labels don't fit; show every fifth day plus today.
+    bool showLabel(int i) =>
+        range != 'daily' || i % 5 == 0 || i == buckets.length - 1;
+    final barWidth = switch (range) { 'daily' => 6.0, 'yearly' => 26.0, _ => 14.0 };
+
+    return Stack(
+      children: [
+        BarChart(
+          BarChartData(
+            maxY: maxY,
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: false,
+              horizontalInterval: step,
+              getDrawingHorizontalLine: (v) => const FlLine(color: AppColors.divider, strokeWidth: 1),
+            ),
+            borderData: FlBorderData(show: false),
+            barTouchData: BarTouchData(
+              touchTooltipData: BarTouchTooltipData(
+                getTooltipColor: (_) => AppColors.chipBlack,
+                getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                  final i = group.x;
+                  return BarTooltipItem(
+                    '${buckets[i]['label']}\n',
+                    const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
+                    children: [
+                      TextSpan(
+                        text: 'Prescriptions: ${formatNumber(prescriptions[i])}\n'
+                            'Orders: ${formatNumber(orders[i])}',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w400, fontSize: 11.5),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+            titlesData: FlTitlesData(
+              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 34,
+                  interval: step,
+                  getTitlesWidget: (value, meta) => Text(
+                    formatCompact(value),
+                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                  ),
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (value, meta) {
+                    final i = value.toInt();
+                    if (i < 0 || i >= buckets.length || !showLabel(i)) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text('${buckets[i]['label']}',
+                          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                    );
+                  },
+                ),
+              ),
+            ),
+            barGroups: [
+              for (var i = 0; i < buckets.length; i++)
+                BarChartGroupData(
+                  x: i,
+                  barRods: [
+                    BarChartRodData(
+                      toY: prescriptions[i] + orders[i],
+                      width: barWidth,
+                      color: AppColors.chartTealPale,
+                      borderRadius: BorderRadius.circular(4),
+                      rodStackItems: [
+                        BarChartRodStackItem(0, orders[i], AppColors.chartTealLight),
+                        BarChartRodStackItem(orders[i], orders[i] + prescriptions[i], AppColors.chartTealDark),
+                      ],
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+        if (peak == 0)
+          const Center(
+            child: Text('No prescriptions or orders in this period',
+                style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+          ),
+        if (reloading)
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: LinearProgressIndicator(
+                minHeight: 2, color: AppColors.primary, backgroundColor: AppColors.activeNavBackground),
+          ),
+      ],
     );
   }
 }

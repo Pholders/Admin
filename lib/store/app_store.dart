@@ -6,9 +6,12 @@ import '../features/auth/domain/repositories/auth_repository.dart';
 import '../features/auth/domain/usecases/admin_login_usecase.dart';
 import '../features/auth/domain/usecases/restore_session_usecase.dart';
 import '../features/auth/domain/usecases/verify_admin_otp_usecase.dart';
-import 'state/app_state.dart';
+import '../core/network/admin_api.dart';
+import 'middleware/admin_middleware.dart';
 import 'middleware/auth_middleware.dart';
 import 'reducers/app_reducer.dart';
+import 'state/admin_state.dart';
+import 'state/app_state.dart';
 import 'state/auth_state.dart';
 
 /// Builds the application's Redux store after dependencies are registered.
@@ -33,12 +36,18 @@ Future<Store<AppState>> createAppStore() async {
     authRepository: sl<AuthRepository>(),
   );
 
+  final adminMiddleware = AdminMiddleware(api: sl<AdminApi>());
+
   return Store<AppState>(
     appReducer,
     initialState: AppState(
       authState: initialAuth,
       navigationState: AppState.initial().navigationState,
+      adminState: AdminState.initial(),
     ),
-    middleware: authMiddleware.middleware,
+    middleware: [
+      ...authMiddleware.middleware,
+      ...adminMiddleware.middleware,
+    ],
   );
 }

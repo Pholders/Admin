@@ -23,7 +23,23 @@ class AuthMiddleware {
         TypedMiddleware<AppState, AdminLoginRequestAction>(_handleAdminLogin),
         TypedMiddleware<AppState, AdminVerifyOtpAction>(_handleAdminVerifyOtp),
         TypedMiddleware<AppState, LogoutAction>(_handleLogout),
+        TypedMiddleware<AppState, SessionExpiredAction>(_handleSessionExpired),
       ];
+
+  /// The server rejected the stored token. Clear it so a reload does not
+  /// restore a dead session; the router sends the admin back to login.
+  Future<void> _handleSessionExpired(
+    Store<AppState> store,
+    SessionExpiredAction action,
+    NextDispatcher next,
+  ) async {
+    next(action);
+    try {
+      await authRepository.logout();
+    } catch (_) {
+      // Best effort, as with a normal logout.
+    }
+  }
 
   Future<void> _handleAdminLogin(
     Store<AppState> store,

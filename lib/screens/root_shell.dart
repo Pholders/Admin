@@ -2,7 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_redux/flutter_redux.dart';
 
 import 'package:pholders_admin/store.dart';
+import 'account_screen.dart';
+import 'admin_tools_screen.dart';
+import 'agreements_screen.dart';
 import 'all_orders_screen.dart';
+import 'claim_routing_screen.dart';
+import 'compliance_screen.dart';
+import 'partner_groups_screen.dart';
+import 'security_screens.dart';
 import 'billing_payments_screen.dart';
 import 'dashboard_screen.dart';
 import 'doctors_screen.dart';
@@ -49,6 +56,22 @@ class RootShell extends StatelessWidget {
             return const PaymentGatewayScreen();
           case 'help_center':
             return const HelpCenterScreen();
+          case 'partner_groups':
+            return const PartnerGroupsScreen();
+          case 'agreements':
+            return const AgreementsScreen();
+          case 'compliance':
+            return const ComplianceScreen();
+          case 'claim_routing':
+            return const ClaimRoutingScreen();
+          case 'security':
+            return const SecurityOverviewScreen();
+          case 'login_locations':
+            return const LoginLocationsScreen();
+          case 'account':
+            return const AccountScreen();
+          case 'admin_tools':
+            return const AdminToolsScreen();
           default:
             return const DashboardScreen();
         }

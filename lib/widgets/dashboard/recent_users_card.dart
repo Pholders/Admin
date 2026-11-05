@@ -1,20 +1,15 @@
 import 'package:flutter/material.dart';
+
+import 'package:pholders_admin/store.dart';
 import '../../theme/app_colors.dart';
+import '../admin/account_ui.dart';
+import '../admin/admin_format.dart';
+import '../admin/admin_ui.dart';
+import '../common/status_badge.dart';
 
-class RecentUser {
-  final String name;
-  final String role;
-  final String status;
-  final Color avatarColor;
-
-  const RecentUser({
-    required this.name,
-    required this.role,
-    required this.status,
-    required this.avatarColor,
-  });
-}
-
+/// Newest sign-ups across patients, doctors and pharmacies, from
+/// `GET /admin/users/recent`. The row menu verifies or rejects pending
+/// accounts and suspends or reactivates the rest.
 class RecentUsersCard extends StatefulWidget {
   const RecentUsersCard({super.key});
 
@@ -23,14 +18,12 @@ class RecentUsersCard extends StatefulWidget {
 }
 
 class _RecentUsersCardState extends State<RecentUsersCard> {
-  int _tabIndex = 0;
-  static const _tabs = ['All', 'Patients', 'Doctors', 'Pharmacy'];
+  static const _limit = 6;
+  static const _tabs = [('all', 'All'), ('patient', 'Patients'), ('doctor', 'Doctors'), ('pharmacy', 'Pharmacy')];
 
-  static const _users = [
-    RecentUser(name: 'Maria Wilson', role: 'Patient', status: 'Active', avatarColor: Colors.pinkAccent),
-    RecentUser(name: 'Maria Wilson', role: 'Doctor', status: 'Active', avatarColor: Colors.indigoAccent),
-    RecentUser(name: 'Maria Wilson', role: 'Pharmacy', status: 'Active', avatarColor: Colors.deepPurpleAccent),
-  ];
+  String _role = 'all';
+
+  Map<String, dynamic> get _params => {'role': _role, 'limit': _limit};
 
   @override
   Widget build(BuildContext context) {
@@ -52,13 +45,16 @@ class _RecentUsersCardState extends State<RecentUsersCard> {
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
               ),
               const Spacer(),
-              for (var i = 0; i < _tabs.length; i++)
+              for (final (role, label) in _tabs)
                 Padding(
                   padding: const EdgeInsets.only(left: 6),
                   child: _TabChip(
-                    label: _tabs[i],
-                    selected: i == _tabIndex,
-                    onTap: () => setState(() => _tabIndex = i),
+                    label: label,
+                    selected: role == _role,
+                    onTap: () {
+                      setState(() => _role = role);
+                      loadAdmin(context, AdminResource.recentUsers, params: _params);
+                    },
                   ),
                 ),
             ],
@@ -66,10 +62,24 @@ class _RecentUsersCardState extends State<RecentUsersCard> {
           const SizedBox(height: 16),
           const _HeaderRow(),
           const Divider(height: 24),
-          for (final user in _users) ...[
-            _UserRow(user: user),
-            const SizedBox(height: 14),
-          ],
+          AdminResourceBuilder(
+            resource: AdminResource.recentUsers,
+            load: _params,
+            builder: (context, data) => AsyncContent(
+              data: data,
+              onRetry: () => reloadAdmin(context, AdminResource.recentUsers),
+              builder: (raw) {
+                final users = recordsOf(raw, ['users']);
+                if (users.isEmpty) return const EmptyState(message: 'No sign-ups yet.');
+                return Column(children: [
+                  for (final user in users) ...[
+                    _UserRow(user: user),
+                    const SizedBox(height: 14),
+                  ],
+                ]);
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -111,99 +121,46 @@ class _HeaderRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const style = TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w600);
-    return Row(
-      children: const [
+    return const Row(
+      children: [
         Expanded(flex: 3, child: Text('Name', style: style)),
         Expanded(flex: 2, child: Text('Role', style: style)),
+        Expanded(flex: 2, child: Text('Joined', style: style)),
         Expanded(flex: 2, child: Text('Status', style: style)),
-        Expanded(flex: 2, child: Text('Action', style: style)),
+        SizedBox(width: 80, child: Text('Action', style: style)),
       ],
     );
   }
 }
 
 class _UserRow extends StatelessWidget {
-  final RecentUser user;
+  final Map<String, dynamic> user;
   const _UserRow({required this.user});
 
   @override
   Widget build(BuildContext context) {
+    final role = user['role']?.toString() ?? 'patient';
+    void open() => showAccountDetail(context, role: role, account: user);
     return Row(
       children: [
-        Expanded(
-          flex: 3,
-          child: Row(
-            children: [
-              CircleAvatar(radius: 14, backgroundColor: user.avatarColor),
-              const SizedBox(width: 10),
-              Text(user.name, style: const TextStyle(fontSize: 13, color: AppColors.textPrimary)),
-            ],
-          ),
-        ),
+        Expanded(flex: 3, child: AccountNameCell(row: user, onTap: open)),
+        Expanded(flex: 2, child: CellText(accountRoleLabels[role] ?? humanize(role))),
+        Expanded(flex: 2, child: CellText(formatDate(user['created_at']))),
         Expanded(
           flex: 2,
-          child: Text(user.role, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-        ),
-        Expanded(
-          flex: 2,
-          child: Row(
-            children: [
-              Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
-              const SizedBox(width: 6),
-              Text(user.status, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-            ],
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: StatusBadge(status: humanize('${user['status'] ?? 'active'}')),
           ),
         ),
-        Expanded(
-          flex: 2,
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit_outlined, size: 17, color: AppColors.textSecondary),
-                onPressed: () {},
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-              const SizedBox(width: 12),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, size: 17, color: AppColors.textSecondary),
-                onPressed: () {},
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-              const SizedBox(width: 12),
-              _ActionMenu(user: user),
-            ],
-          ),
+        SizedBox(
+          width: 80,
+          child: Row(children: [
+            RowIconButton(icon: Icons.visibility_outlined, tooltip: 'View', onPressed: open),
+            AccountActionsMenu(role: role, account: user),
+          ]),
         ),
       ],
-    );
-  }
-}
-
-/// The "..." menu that opens View / Verify (Approve) / Reject — matches the
-/// popup shown at the bottom of the Figma frame.
-class _ActionMenu extends StatelessWidget {
-  final RecentUser user;
-  const _ActionMenu({required this.user});
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert, size: 17, color: AppColors.textSecondary),
-      padding: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      itemBuilder: (context) => [
-        const PopupMenuItem(value: 'view', child: Text('View')),
-        const PopupMenuItem(value: 'verify', child: Text('Verify (Approve)')),
-        const PopupMenuItem(value: 'reject', child: Text('Reject')),
-      ],
-      onSelected: (value) {
-        // Wire these up to real actions (navigate, call API, show dialog, etc).
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$value → ${user.name}')),
-        );
-      },
     );
   }
 }

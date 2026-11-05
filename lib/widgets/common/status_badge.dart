@@ -44,7 +44,31 @@ class StatusBadge extends StatelessWidget {
       case 'blocked':
         return const Color(0xFF8A5A3B);
       case 'draft':
+      case 'inactive':
         return AppColors.textMuted;
+      // Partnership tiers
+      case 'premium':
+        return const Color(0xFF7C6FEA);
+      case 'standard':
+        return const Color(0xFF2F80ED);
+      case 'basic':
+        return const Color(0xFF8A97A0);
+      // Agreements and audit outcomes
+      case 'expired':
+      case 'no agreements':
+        return const Color(0xFF8A97A0);
+      case 'terminated':
+      case 'failed':
+      case 'failure':
+      case 'poor':
+        return AppColors.danger;
+      case 'success':
+      case 'excellent':
+        return const Color(0xFF1FA97C);
+      case 'good':
+        return AppColors.primaryDark;
+      case 'fair':
+        return const Color(0xFFE0A83C);
       default:
         return AppColors.textSecondary;
     }
@@ -64,9 +88,15 @@ class StatusBadge extends StatelessWidget {
         children: [
           Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
           const SizedBox(width: 6),
-          Text(
-            status,
-            style: TextStyle(fontSize: 11.5, color: color, fontWeight: FontWeight.w600),
+          // Flexible so a long status truncates inside a narrow table cell
+          // instead of overflowing it.
+          Flexible(
+            child: Text(
+              status,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
+              style: TextStyle(fontSize: 11.5, color: color, fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),

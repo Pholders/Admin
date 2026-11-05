@@ -34,9 +34,27 @@ class AppSidebar extends StatelessWidget {
       ],
     ),
     const NavSection(
+      title: 'Partnerships',
+      icon: Icons.handshake_outlined,
+      items: [
+        NavItem(label: 'Partner Groups', route: 'partner_groups'),
+        NavItem(label: 'Agreements', route: 'agreements'),
+        NavItem(label: 'Compliance', route: 'compliance'),
+        NavItem(label: 'Claim Routing', route: 'claim_routing'),
+      ],
+    ),
+    const NavSection(
       title: 'Financial',
       icon: Icons.account_balance_outlined,
       items: [NavItem(label: 'Billing & Payments', route: 'billing')],
+    ),
+    const NavSection(
+      title: 'Security',
+      icon: Icons.shield_outlined,
+      items: [
+        NavItem(label: 'Security Overview', route: 'security'),
+        NavItem(label: 'Login Locations', route: 'login_locations'),
+      ],
     ),
     const NavSection(
       title: 'System',
@@ -45,6 +63,8 @@ class AppSidebar extends StatelessWidget {
         NavItem(label: 'Settings', route: 'settings'),
         NavItem(label: 'Payment Gateways', route: 'payment_gateways'),
         NavItem(label: 'Help Center', route: 'help_center'),
+        NavItem(label: 'My Account', route: 'account'),
+        NavItem(label: 'Admin Tools', route: 'admin_tools'),
       ],
     ),
   ];

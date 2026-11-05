@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:redux/redux.dart';
@@ -17,6 +19,11 @@ GoRouter createRouter(Store<AppState> store) {
   return GoRouter(
     initialLocation: AppRoutes.adminDashboard,
     debugLogDiagnostics: true,
+    // Re-run [redirect] whenever the signed-in state flips, not only on
+    // navigation — otherwise an admin whose token expires mid-session (the
+    // admin middleware dispatches SessionExpiredAction on a 401) would stay
+    // on a screen whose every request now fails.
+    refreshListenable: _AuthChangeNotifier(store),
     redirect: (BuildContext context, GoRouterState state) {
       final authState = store.state.authState;
       final isAuthenticated = authState.isAuthenticated;
@@ -64,4 +71,27 @@ GoRouter createRouter(Store<AppState> store) {
       ),
     ],
   );
+}
+
+
+/// Notifies when [AuthState.isAuthenticated] changes.
+class _AuthChangeNotifier extends ChangeNotifier {
+  _AuthChangeNotifier(Store<AppState> store)
+      : _signedIn = store.state.authState.isAuthenticated {
+    _subscription = store.onChange.listen((state) {
+      final signedIn = state.authState.isAuthenticated;
+      if (signedIn == _signedIn) return;
+      _signedIn = signedIn;
+      notifyListeners();
+    });
+  }
+
+  bool _signedIn;
+  late final StreamSubscription<AppState> _subscription;
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
 }

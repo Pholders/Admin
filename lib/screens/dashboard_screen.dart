@@ -6,14 +6,46 @@ import 'package:pholders_admin/store.dart';
 import '../core/utils/greeting.dart';
 import '../theme/app_colors.dart';
 import '../widgets/shell/app_shell.dart';
-import '../widgets/dashboard/stat_card.dart';
+import '../widgets/admin/admin_ui.dart';
+import '../widgets/dashboard/dashboard_stats.dart';
 import '../widgets/dashboard/activity_trend_card.dart';
 import '../widgets/dashboard/system_distribution_card.dart';
 import '../widgets/dashboard/recent_users_card.dart';
 import '../widgets/dashboard/system_alerts_card.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  static const _resources = [
+    AdminResource.dashboardSummary,
+    AdminResource.dashboardActivity,
+    AdminResource.recentUsers,
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    // The store keeps the last figures; show them straight away and refresh
+    // them in the background each time the dashboard is opened.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final admin = StoreProvider.of<AppState>(context, listen: false).state.adminState;
+      for (final r in _resources) {
+        if (!admin.of(r).isIdle) reloadAdmin(context, r);
+      }
+    });
+  }
+
+  void _refresh() {
+    for (final r in _resources) {
+      reloadAdmin(context, r);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +64,7 @@ class DashboardScreen extends StatelessWidget {
                   children: [
                     Text(today, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                     const SizedBox(width: 8),
-                    const Icon(Icons.refresh, size: 15, color: AppColors.textSecondary),
+                    RowIconButton(icon: Icons.refresh, tooltip: 'Refresh', onPressed: _refresh),
                   ],
                 ),
                 const Spacer(),

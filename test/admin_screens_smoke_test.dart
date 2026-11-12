@@ -14,7 +14,10 @@ import 'package:pholders_admin/screens/doctors_screen.dart';
 import 'package:pholders_admin/screens/patients_screen.dart';
 import 'package:pholders_admin/screens/pharmacies_screen.dart';
 import 'package:pholders_admin/screens/partner_groups_screen.dart';
+import 'package:pholders_admin/screens/help_center_screen.dart';
+import 'package:pholders_admin/screens/returns_screen.dart';
 import 'package:pholders_admin/screens/security_screens.dart';
+import 'package:pholders_admin/screens/tracking_screen.dart';
 import 'package:pholders_admin/store.dart';
 import 'package:pholders_admin/widgets/dashboard/stat_card.dart';
 import 'package:redux/redux.dart';
@@ -478,6 +481,60 @@ void main() {
     expect(api.patched, ['/users/admin/pharmacies/7/status suspended']);
   });
 
+  testWidgets('Partner Groups: header, filters and column headings stay put while rows scroll', (tester) async {
+    await _pump(tester, const PartnerGroupsScreen(), withApi: _ManyRowsApi());
+    await _expectPinnedWhileRowsScroll(
+      tester,
+      pinned: [find.text('Pharmacy groups, their tiers and members'), find.text('All tiers'), find.text('Commission')],
+      dragFrom: find.text('Group 3'),
+    );
+  });
+
+  testWidgets('Agreements: header, filters and column headings stay put while rows scroll', (tester) async {
+    await _pump(tester, const AgreementsScreen(), withApi: _ManyRowsApi());
+    await _expectPinnedWhileRowsScroll(
+      tester,
+      pinned: [find.text('Partnership agreements with pharmacies and groups'), find.text('Expiring soon'), find.text('Agreement')],
+      dragFrom: find.text('#1003'),
+    );
+  });
+
+  testWidgets('Login Locations: the lookup form and headings stay put while rows scroll', (tester) async {
+    await _pump(tester, const LoginLocationsScreen(), withApi: _ManyRowsApi());
+    await tester.enterText(find.byType(TextField).last, '1');
+    await _tap(tester, find.text('Look Up'));
+    await _expectPinnedWhileRowsScroll(
+      tester,
+      pinned: [find.text('Look Up'), find.text('Time Zone')],
+      dragFrom: find.text('City 3, ZA'),
+    );
+  });
+
+  testWidgets('Security Overview: the title stays put while its sections scroll', (tester) async {
+    await _pump(tester, const SecurityOverviewScreen(), withApi: _ManyRowsApi());
+    await _expectPinnedWhileRowsScroll(
+      tester,
+      pinned: [find.text('Sign-in activity and location alerts from the audit log'), find.text('Last 24 hours')],
+      dragFrom: find.text('user3@y.test'),
+    );
+  });
+
+  testWidgets('Returns, Tracking and Help Center lay out with their headers pinned', (tester) async {
+    for (final (screen, title, row) in const [
+      (ReturnsScreen(), 'Manage returned prescription orders', 'Return ID'),
+      (TrackingScreen(), 'Track delivery status of prescription orders', null),
+      (HelpCenterScreen(), 'Manage frequently asked questions', null),
+    ]) {
+      await _pump(tester, screen, size: const Size(1920, 760));
+      expect(tester.takeException(), isNull, reason: '${screen.runtimeType} laid out');
+      final before = tester.getTopLeft(find.text(title));
+      await tester.drag(find.byType(Scrollable).last, const Offset(0, -200));
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(find.text(title)), before, reason: '${screen.runtimeType} title stayed put');
+      if (row != null) expect(find.text(row), findsOneWidget, reason: 'column headings still shown');
+    }
+  });
+
   testWidgets('A short window scrolls the whole page instead of pinning', (tester) async {
     await _pump(tester, const PatientsScreen(), size: const Size(1920, 560), withApi: _ManyPatientsApi());
     expect(find.ancestor(of: find.text('Patient 1'), matching: find.byType(ListView)), findsNothing,
@@ -485,6 +542,33 @@ void main() {
     expect(find.ancestor(of: find.text('Patient 1'), matching: find.byType(SingleChildScrollView)),
         findsWidgets);
   });
+
+  for (final (name, screen, row, viewOnly) in [
+    ('Patients', const PatientsScreen() as Widget, 'Pieter van Wyk', 'South African'),
+    ('Doctors', const DoctorsScreen(), 'Naledi Mokoena', 'Paediatrician'),
+    ('Pharmacies', const PharmaciesScreen(), 'HealthPlus Pharmacy', 'Prescription Filling'),
+  ]) {
+    testWidgets('$name: a row opens its details in place of the table; Back restores it', (tester) async {
+      await _pump(tester, screen);
+      final total = find.text('Total $name');
+      expect(total, findsOneWidget);
+
+      await _tap(tester, find.text(row));
+      expect(find.byType(Dialog), findsNothing, reason: 'no pop-up');
+      expect(find.text(viewOnly), findsOneWidget, reason: 'full record shown');
+      expect(total, findsNothing, reason: 'the table and its stats are replaced');
+
+      await _tap(tester, find.text('Back to list'));
+      expect(total, findsOneWidget);
+      expect(find.text(viewOnly), findsNothing);
+      expect(find.text(row), findsOneWidget);
+
+      // The View button opens it the same way.
+      await _tap(tester, find.byTooltip('View').first);
+      expect(find.byType(Dialog), findsNothing);
+      expect(find.text('Back to list'), findsOneWidget);
+    });
+  }
 }
 
 /// Drags the table's rows and checks they scrolled while [pinned] did not
@@ -495,11 +579,13 @@ Future<void> _expectPinnedWhileRowsScroll(
   required Finder dragFrom,
 }) async {
   final before = [for (final f in pinned) tester.getTopLeft(f)];
-  // The nearest scroller around a row is the table's own row list (the
-  // sidebar has a ListView too, so it can't be found by type alone).
-  final rows = tester.state<ScrollableState>(
-      find.ancestor(of: dragFrom, matching: find.byType(Scrollable)).first);
-  expect(rows.position.axis, Axis.vertical);
+  // The nearest vertical scroller around a row: the table's own row list,
+  // or on a page of sections, the scroller they share. (A table also has a
+  // horizontal scroller, and the sidebar a ListView, so neither the first
+  // match nor the type alone will do.)
+  final rows = tester
+      .stateList<ScrollableState>(find.ancestor(of: dragFrom, matching: find.byType(Scrollable)))
+      .firstWhere((s) => s.position.axis == Axis.vertical);
 
   await tester.drag(dragFrom, const Offset(0, -250));
   await tester.pumpAndSettle();
@@ -552,6 +638,42 @@ class _ManyPatientsApi extends _CannedApi {
               'email_verified': true,
               'created_at': '2026-10-01T00:00:00Z',
             },
+        ],
+      };
+    }
+    return super.get(path, query: query);
+  }
+}
+
+/// Long lists for the pinned-layout tests.
+class _ManyRowsApi extends _CannedApi {
+  @override
+  Future<dynamic> get(String path, {Map<String, dynamic>? query}) async {
+    if (path.endsWith('/partnerships/groups')) {
+      return [
+        for (var i = 1; i <= 40; i++)
+          {..._CannedApi._group, 'id': i, 'group_name': 'Group $i'},
+      ];
+    }
+    if (path.endsWith('/partnerships/agreements')) {
+      return [
+        for (var i = 1; i <= 40; i++) {..._CannedApi._agreement, 'id': 1000 + i},
+      ];
+    }
+    if (path.endsWith('/security/dashboard')) {
+      final base = Map<String, dynamic>.from(await super.get(path, query: query) as Map);
+      return {
+        ...base,
+        'impossible_travels': [
+          for (var i = 1; i <= 30; i++) {'email': 'user$i@y.test', 'country': 'ZA', 'city': 'Durban'},
+        ],
+      };
+    }
+    if (path.endsWith('/security/user-locations')) {
+      return {
+        'locations': [
+          for (var i = 1; i <= 40; i++)
+            {'country': 'ZA', 'city': 'City $i', 'timezone': 'Africa/Johannesburg', 'login_count': '$i'},
         ],
       };
     }

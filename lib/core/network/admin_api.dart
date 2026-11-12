@@ -170,6 +170,96 @@ class AdminApi {
       get('/users/admin/security/user-locations',
           query: {'user_id': userId, 'days': days});
 
+  // ─── Admin records ──────────────────────────────────────────────────────────
+  // List endpoints answer `{total, limit, offset, <items>}`; [query] carries
+  // the filters plus `limit` (1–200) and `offset`. Empty filters are dropped
+  // by [_clean], which the backend treats the same as leaving them out.
+
+  Future<dynamic> listOrders(Map<String, dynamic> query) =>
+      get('/users/admin/orders', query: query);
+  Future<dynamic> getOrder(Object id) => get('/users/admin/orders/$id');
+
+  /// Also returns `totals.by_status` over the whole filtered set.
+  Future<dynamic> listPayments(Map<String, dynamic> query) =>
+      get('/users/admin/payments', query: query);
+  Future<dynamic> getPayment(Object id) => get('/users/admin/payments/$id');
+
+  Future<dynamic> listAppointments(Map<String, dynamic> query) =>
+      get('/users/admin/appointments', query: query);
+  Future<dynamic> getAppointment(Object id) =>
+      get('/users/admin/appointments/$id');
+
+  Future<dynamic> listPrescriptions(Map<String, dynamic> query) =>
+      get('/users/admin/prescriptions', query: query);
+
+  /// Audit-logged with the admin's name: call only when the admin opens one.
+  Future<dynamic> getPrescription(Object id) =>
+      get('/users/admin/prescriptions/$id');
+
+  Future<dynamic> listTickets(Map<String, dynamic> query) =>
+      get('/users/admin/support/tickets', query: query);
+  Future<dynamic> getTicket(Object id) =>
+      get('/users/admin/support/tickets/$id');
+
+  /// Send at least one of [status] and [priority]. Returns the full ticket.
+  Future<dynamic> updateTicket(Object id, {String? status, String? priority}) =>
+      patch('/users/admin/support/tickets/$id', body: {
+        if (status != null) 'status': status,
+        if (priority != null) 'priority': priority,
+      });
+
+  /// Returns `{email_sent, ticket}`. A `409` means the ticket is closed.
+  Future<dynamic> replyToTicket(Object id, String message) =>
+      post('/users/admin/support/tickets/$id/replies',
+          body: {'message': message});
+
+  Future<dynamic> listReviews(Map<String, dynamic> query) =>
+      get('/users/admin/reviews', query: query);
+
+  /// [reason] is required when hiding.
+  Future<dynamic> setReviewVisibility(Object id,
+          {required bool hidden, String? reason}) =>
+      patch('/users/admin/reviews/$id/visibility', body: {
+        'hidden': hidden,
+        if (hidden) 'reason': reason,
+      });
+  Future<dynamic> deleteReview(Object id) =>
+      delete('/users/admin/reviews/$id');
+
+  Future<dynamic> securityAlertStats() =>
+      get('/users/admin/security/alerts/stats');
+  Future<dynamic> listSecurityAlerts(Map<String, dynamic> query) =>
+      get('/users/admin/security/alerts', query: query);
+  Future<dynamic> getSecurityAlert(Object id) =>
+      get('/users/admin/security/alerts/$id');
+
+  /// `verified_threat` signs the account out everywhere and emails its owner.
+  Future<dynamic> reviewSecurityAlert(Object id,
+          {required String status, String? adminNotes, String? actionTaken}) =>
+      post('/users/admin/security/alerts/$id/review', body: {
+        'status': status,
+        if (adminNotes != null && adminNotes.isNotEmpty) 'adminNotes': adminNotes,
+        if (actionTaken != null && actionTaken.isNotEmpty)
+          'actionTaken': actionTaken,
+      });
+
+  /// Up to 200 ids. Returns `{updated_count, not_found, sessions_revoked}`.
+  Future<dynamic> bulkReviewSecurityAlerts(List<Object> ids,
+          {required String status, String? actionReason}) =>
+      post('/users/admin/security/alerts/bulk-review', body: {
+        'alertIds': ids,
+        'status': status,
+        if (actionReason != null && actionReason.isNotEmpty)
+          'actionReason': actionReason,
+      });
+  Future<dynamic> suspiciousUsers({int hours = 24, int threshold = 3}) =>
+      get('/users/admin/security/suspicious-users',
+          query: {'hours': hours, 'threshold': threshold});
+
+  /// Both dates optional (`yyyy-MM-dd`); without them, the last 30 days.
+  Future<dynamic> securityReport({String? from, String? to}) =>
+      get('/users/admin/security/report', query: {'from': from, 'to': to});
+
   // ─── Partnership groups ─────────────────────────────────────────────────────
   Future<dynamic> listGroups({String? tier, bool isActive = true}) =>
       get('/users/partnerships/groups', query: {

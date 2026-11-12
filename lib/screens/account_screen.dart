@@ -13,21 +13,21 @@ class AccountScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const AppShell(
+    return AppShell(
       currentPage: 'My Account',
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ScreenTitle(title: 'My Account', subtitle: 'Your admin profile, sessions and activity'),
-            SizedBox(height: 20),
-            _Profile(),
-            SizedBox(height: 18),
-            _Sessions(),
-            SizedBox(height: 18),
-            _Activity(),
-          ],
-        ),
+      body: PinnedPage(
+        sections: true,
+        header: const [
+          ScreenTitle(title: 'My Account', subtitle: 'Your admin profile, sessions and activity'),
+          SizedBox(height: 20),
+        ],
+        body: (_) => const Column(children: [
+          _Profile(),
+          SizedBox(height: 18),
+          _Sessions(),
+          SizedBox(height: 18),
+          _Activity(),
+        ]),
       ),
     );
   }

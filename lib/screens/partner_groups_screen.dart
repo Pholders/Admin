@@ -55,10 +55,8 @@ class _PartnerGroupsScreenState extends State<PartnerGroupsScreen> {
   Widget build(BuildContext context) {
     return AppShell(
       currentPage: 'Partner Groups',
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: PinnedPage(
+          header: [
             PageHeader(
               title: 'Partner Groups',
               subtitle: 'Pharmacy groups, their tiers and members',
@@ -98,7 +96,8 @@ class _PartnerGroupsScreenState extends State<PartnerGroupsScreen> {
               ],
             ),
             const SizedBox(height: 18),
-            AdminResourceBuilder(
+          ],
+          body: (pinned) => AdminResourceBuilder(
               resource: AdminResource.groups,
               load: _params,
               builder: (context, data) {
@@ -109,19 +108,16 @@ class _PartnerGroupsScreenState extends State<PartnerGroupsScreen> {
                       _GroupStats(rows: rows),
                       const SizedBox(height: 18),
                     ],
-                    SectionCard(
-                      child: AsyncContent(
-                        data: data,
-                        onRetry: () => reloadAdmin(context, AdminResource.groups),
-                        builder: (_) => _GroupsTable(rows: rows),
-                      ),
+                    TableCard(
+                      pinned: pinned,
+                      data: data,
+                      onRetry: () => reloadAdmin(context, AdminResource.groups),
+                      builder: (_) => _GroupsTable(rows: rows, stickyHeader: pinned),
                     ),
                   ],
                 );
               },
-            ),
-          ],
-        ),
+          ),
       ),
     );
   }
@@ -174,7 +170,8 @@ class _GroupStats extends StatelessWidget {
 
 class _GroupsTable extends StatelessWidget {
   final List<Map<String, dynamic>> rows;
-  const _GroupsTable({required this.rows});
+  final bool stickyHeader;
+  const _GroupsTable({required this.rows, this.stickyHeader = false});
 
   void _open(BuildContext context, Map<String, dynamic> row) =>
       showGroupDetail(context, row['id'], row['group_name']?.toString());
@@ -183,6 +180,7 @@ class _GroupsTable extends StatelessWidget {
   Widget build(BuildContext context) {
     return RecordTable(
       rows: rows,
+      stickyHeader: stickyHeader,
       emptyMessage: 'No groups match these filters.',
       onRowTap: (row) => _open(context, row),
       columns: [
@@ -351,10 +349,7 @@ class _GroupFormDialogState extends State<GroupFormDialog> {
 Future<void> showGroupDetail(BuildContext context, Object? groupId, String? name) async {
   if (groupId == null) return;
   final store = StoreProvider.of<AppState>(context, listen: false);
-  await showDialog(
-    context: context,
-    builder: (_) => _GroupDetailDialog(groupId: groupId, name: name),
-  );
+  await showAdminDetail(context, (_) => _GroupDetailDialog(groupId: groupId, name: name));
   store.dispatch(const ClearAdminResourceAction(AdminResource.groupDetail));
 }
 
@@ -383,7 +378,7 @@ class _GroupDetailDialog extends StatelessWidget {
                 onPressed: () => showDialog(
                     context: context, builder: (_) => GroupFormDialog(group: group)),
               ),
-            PrimaryButton(label: 'Done', onPressed: () => Navigator.pop(context)),
+            PrimaryButton(label: 'Done', onPressed: () => closeAdminDetail(context)),
           ],
           child: AsyncContent(
             data: data,

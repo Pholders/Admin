@@ -6,6 +6,11 @@ import 'account_screen.dart';
 import 'admin_tools_screen.dart';
 import 'agreements_screen.dart';
 import 'all_orders_screen.dart';
+import 'appointments_screen.dart';
+import 'prescriptions_screen.dart';
+import 'reviews_screen.dart';
+import 'security_alerts_screen.dart';
+import 'support_tickets_screen.dart';
 import 'claim_routing_screen.dart';
 import 'compliance_screen.dart';
 import 'partner_groups_screen.dart';
@@ -68,6 +73,16 @@ class RootShell extends StatelessWidget {
             return const SecurityOverviewScreen();
           case 'login_locations':
             return const LoginLocationsScreen();
+          case 'appointments':
+            return const AppointmentsScreen();
+          case 'prescriptions':
+            return const PrescriptionsScreen();
+          case 'reviews':
+            return const ReviewsScreen();
+          case 'support_tickets':
+            return const SupportTicketsScreen();
+          case 'security_alerts':
+            return const SecurityAlertsScreen();
           case 'account':
             return const AccountScreen();
           case 'admin_tools':

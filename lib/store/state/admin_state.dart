@@ -47,6 +47,38 @@ enum AdminResource {
 
   // System
   systemLogs,
+
+  // Records (view-only lists; params are the endpoint's filters plus
+  // limit/offset, passed through as the query string)
+  orders,
+  payments,
+  appointments,
+  prescriptions,
+
+  // Support and moderation
+  supportTickets,
+  reviews,
+
+  // Security alerts
+  securityAlertStats,
+  securityAlerts,
+  suspiciousUsers,
+  securityReport,
+}
+
+/// One record opened in a detail dialog. These are fetched on demand through
+/// `FetchAdminRecordAction` rather than kept in a store slot, so a detail can
+/// open another detail of the same kind (an order's prescription, that
+/// prescription's other order) without the two overwriting each other.
+enum AdminRecordKind {
+  order,
+  payment,
+  appointment,
+
+  /// Audit-logged on the server with the admin's name.
+  prescription,
+  supportTicket,
+  securityAlert,
 }
 
 enum LoadStatus { idle, loading, success, failure }

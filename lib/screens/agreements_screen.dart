@@ -71,10 +71,8 @@ class _AgreementsScreenState extends State<AgreementsScreen> {
   Widget build(BuildContext context) {
     return AppShell(
       currentPage: 'Agreements',
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: PinnedPage(
+          header: [
             PageHeader(
               title: 'Agreements',
               subtitle: 'Partnership agreements with pharmacies and groups',
@@ -125,7 +123,8 @@ class _AgreementsScreenState extends State<AgreementsScreen> {
               ],
             ),
             const SizedBox(height: 18),
-            _PartyNamesBuilder(
+          ],
+          body: (pinned) => _PartyNamesBuilder(
               builder: (names) => AdminResourceBuilder(
                 // Keyed so switching views re-runs the initial load.
                 key: ValueKey(_resource),
@@ -140,20 +139,18 @@ class _AgreementsScreenState extends State<AgreementsScreen> {
                         _AgreementStats(rows: all),
                         const SizedBox(height: 18),
                       ],
-                      SectionCard(
-                        child: AsyncContent(
-                          data: data,
-                          onRetry: () => reloadAdmin(context, _resource),
-                          builder: (_) => _AgreementsTable(rows: rows, names: names),
-                        ),
+                      TableCard(
+                        pinned: pinned,
+                        data: data,
+                        onRetry: () => reloadAdmin(context, _resource),
+                        builder: (_) =>
+                            _AgreementsTable(rows: rows, names: names, stickyHeader: pinned),
                       ),
                     ],
                   );
                 },
               ),
-            ),
-          ],
-        ),
+          ),
       ),
     );
   }
@@ -220,12 +217,14 @@ class _PartyNamesBuilder extends StatelessWidget {
 class _AgreementsTable extends StatelessWidget {
   final List<Map<String, dynamic>> rows;
   final _PartyNames names;
-  const _AgreementsTable({required this.rows, required this.names});
+  final bool stickyHeader;
+  const _AgreementsTable({required this.rows, required this.names, this.stickyHeader = false});
 
   @override
   Widget build(BuildContext context) {
     return RecordTable(
       rows: rows,
+      stickyHeader: stickyHeader,
       emptyMessage: 'No agreements match these filters.',
       onRowTap: (r) => showAgreementDetail(context, r['id']),
       columns: [
@@ -617,7 +616,7 @@ class _AgreementEditDialogState extends State<AgreementEditDialog> {
 Future<void> showAgreementDetail(BuildContext context, Object? id) async {
   if (id == null) return;
   final store = StoreProvider.of<AppState>(context, listen: false);
-  await showDialog(context: context, builder: (_) => _AgreementDetailDialog(id: id));
+  await showAdminDetail(context, (_) => _AgreementDetailDialog(id: id));
   store.dispatch(const ClearAdminResourceAction(AdminResource.agreementDetail));
 }
 
@@ -656,7 +655,7 @@ class _AgreementDetailDialog extends StatelessWidget {
                   icon: Icons.edit_outlined,
                   onPressed: () => showDialog(
                       context: context, builder: (_) => AgreementEditDialog(agreement: a))),
-            PrimaryButton(label: 'Done', onPressed: () => Navigator.pop(context)),
+            PrimaryButton(label: 'Done', onPressed: () => closeAdminDetail(context)),
           ],
           child: AsyncContent(
             data: data,

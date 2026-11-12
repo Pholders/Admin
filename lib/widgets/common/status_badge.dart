@@ -6,9 +6,16 @@ import '../../theme/app_colors.dart';
 /// Orders table or a future Billing table.
 class StatusBadge extends StatelessWidget {
   final String status;
-  const StatusBadge({super.key, required this.status});
+
+  /// Overrides the colour looked up from [status], for statuses whose word
+  /// means something different on another screen (a `pending` prescription
+  /// is grey, not the pink of a pending account).
+  final Color? color;
+
+  const StatusBadge({super.key, required this.status, this.color});
 
   Color get _color {
+    if (color != null) return color!;
     switch (status.toLowerCase()) {
       case 'active':
       case 'completed':
@@ -69,6 +76,38 @@ class StatusBadge extends StatelessWidget {
         return AppColors.primaryDark;
       case 'fair':
         return const Color(0xFFE0A83C);
+      // Orders, appointments, tickets and payments
+      case 'accepted':
+      case 'awaiting claim':
+      case 'claim approved':
+      case 'preparing':
+      case 'scheduled':
+      case 'rescheduled':
+        return const Color(0xFF2F80ED);
+      case 'ready':
+      case 'picked up':
+      case 'resolved':
+      case 'visible':
+        return const Color(0xFF1FA97C);
+      case 'pending payment':
+        return const Color(0xFFE0A83C);
+      case 'claim rejected':
+      case 'no show':
+      case 'urgent':
+        return AppColors.danger;
+      case 'normal':
+      case 'hidden':
+        return const Color(0xFF8A97A0);
+      // Security alerts
+      case 'critical':
+      case 'verified threat':
+        return AppColors.danger;
+      case 'unreviewed':
+        return const Color(0xFFE0A83C);
+      case 'verified legit':
+        return const Color(0xFF1FA97C);
+      case 'dismissed':
+        return const Color(0xFF8A97A0);
       default:
         return AppColors.textSecondary;
     }

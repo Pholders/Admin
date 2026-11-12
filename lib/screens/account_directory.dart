@@ -94,7 +94,9 @@ class _AccountDirectoryState extends State<AccountDirectory> {
   void _filterBy(String? status) =>
       setState(() => _status = (_status == status ? null : status));
 
-  void _open(Map<String, dynamic> row) =>
+  /// [context] must be one inside the app shell (the table's), so the
+  /// details open in place of the table rather than in a pop-up.
+  void _open(BuildContext context, Map<String, dynamic> row) =>
       showAccountDetail(context, role: widget.role, account: row);
 
   List<Map<String, dynamic>> _visible(List<Map<String, dynamic>> rows) {
@@ -214,13 +216,13 @@ class _AccountDirectoryState extends State<AccountDirectory> {
                     emptyMessage: rows.isEmpty
                         ? 'No ${widget.pageTitle.toLowerCase()} have registered yet.'
                         : 'No ${widget.pageTitle.toLowerCase()} match this search or filter.',
-                    columns: widget.columns(_open),
+                    columns: widget.columns((r) => _open(context, r)),
                     actionsWidth: 80,
                     actions: (r) => Row(children: [
                       RowIconButton(
                           icon: Icons.visibility_outlined,
                           tooltip: 'View',
-                          onPressed: () => _open(r)),
+                          onPressed: () => _open(context, r)),
                       AccountActionsMenu(role: widget.role, account: r),
                     ]),
                   ),

@@ -36,7 +36,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (!mounted) return;
       final admin = StoreProvider.of<AppState>(context, listen: false).state.adminState;
       for (final r in _resources) {
-        if (!admin.of(r).isIdle) reloadAdmin(context, r);
+        final slot = admin.of(r);
+        // Skip data the startup prefetch is still loading or just loaded.
+        final fresh = slot.isLoading ||
+            (slot.updatedAt != null &&
+                DateTime.now().difference(slot.updatedAt!) < const Duration(seconds: 30));
+        if (!slot.isIdle && !fresh) reloadAdmin(context, r);
       }
     });
   }

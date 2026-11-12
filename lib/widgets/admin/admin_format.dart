@@ -50,15 +50,25 @@ String formatValue(dynamic value) {
   return text;
 }
 
-/// `"2026-03-12T08:30:00.000Z"` → `"12 Mar 2026, 10:30"` in local time.
+/// South African Standard Time is UTC+2 all year (no daylight saving), so
+/// `Africa/Johannesburg` is a fixed offset and needs no time-zone database.
+const sastOffset = Duration(hours: 2);
+
+/// [instant] as a wall-clock time in Africa/Johannesburg. The result is a
+/// "UTC" [DateTime] holding SAST fields, for formatting only.
+DateTime toSast(DateTime instant) => instant.toUtc().add(sastOffset);
+
+/// `"2026-03-12T08:30:00.000Z"` → `"12 Mar 2026, 10:30"` in Africa/Johannesburg
+/// time, whatever zone the admin's device is in — the backend's dates and
+/// filters are all South African.
 String formatDate(dynamic value, {bool withTime = false}) {
   if (value == null) return '—';
   final parsed = DateTime.tryParse(value.toString());
   if (parsed == null) return value.toString();
-  // Date-only values have no zone: shifting them to local time could move
-  // them to the previous day.
-  final local = _isoDate.hasMatch(value.toString()) ? parsed : parsed.toLocal();
-  return (withTime ? _dateTimeFormat : _dateFormat).format(local);
+  // Date-only values (e.g. `appointment_date`) have no zone: shifting them
+  // could move them to the previous day.
+  final wall = _isoDate.hasMatch(value.toString()) ? parsed : toSast(parsed);
+  return (withTime ? _dateTimeFormat : _dateFormat).format(wall);
 }
 
 /// The `yyyy-MM-dd` form the API expects for date fields and filters.

@@ -212,10 +212,7 @@ Future<void> showAccountDetail(
   required Map<String, dynamic> account,
 }) async {
   final store = StoreProvider.of<AppState>(context, listen: false);
-  await showDialog(
-    context: context,
-    builder: (_) => _AccountDetailDialog(role: role, account: account),
-  );
+  await showAdminDetail(context, (_) => _AccountDetailDialog(role: role, account: account));
   store.dispatch(const ClearAdminResourceAction(AdminResource.accountDetail));
 }
 
@@ -281,7 +278,7 @@ class _AccountDetailDialog extends StatelessWidget {
               label: 'Reactivate',
               icon: Icons.play_circle_outline,
               onPressed: () => changeAccountStatus(context, role: role, account: record, status: 'active')),
-        if (status != 'pending') PrimaryButton(label: 'Done', onPressed: () => Navigator.pop(context)),
+        if (status != 'pending') PrimaryButton(label: 'Done', onPressed: () => closeAdminDetail(context)),
       ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

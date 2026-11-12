@@ -17,10 +17,9 @@ class ClaimRoutingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppShell(
       currentPage: 'Claim Routing',
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: PinnedPage(
+          sections: true,
+          header: [
             ScreenTitle(
               title: 'Claim Routing',
               subtitle: 'Which pharmacies prescriptions are routed to, and how they respond',
@@ -36,13 +35,14 @@ class ClaimRoutingScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 20),
-            const _Statistics(),
-            const SizedBox(height: 18),
-            const _ByTier(),
-            const SizedBox(height: 18),
-            const _Candidates(),
           ],
-        ),
+          body: (_) => const Column(children: [
+            _Statistics(),
+            SizedBox(height: 18),
+            _ByTier(),
+            SizedBox(height: 18),
+            _Candidates(),
+          ]),
       ),
     );
   }

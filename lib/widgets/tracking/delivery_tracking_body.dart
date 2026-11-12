@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../admin/admin_ui.dart';
 import '../../models/tracking_order.dart';
 import '../../theme/app_colors.dart';
 import '../common/page_header.dart';
@@ -65,28 +66,7 @@ class _DeliveryTrackingBodyState extends State<DeliveryTrackingBody> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          PageHeader(
-            title: widget.title,
-            subtitle: widget.subtitle,
-            searchHint: widget.searchHint,
-            onSearchChanged: (v) => setState(() => _query = v),
-          ),
-          const SizedBox(height: 20),
-          _StatsRow(
-            inTransit: _countWhere('In Transit'),
-            outForDelivery: _countWhere('Out for Delivery'),
-            delivered: _countWhere('Delivered'),
-            delayed: _countWhere('Delayed'),
-            failedDelivery: _countWhere('Failed Delivery'),
-          ),
-          const SizedBox(height: 20),
-          Container(
+  Widget _table(bool pinned) => Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -94,6 +74,7 @@ class _DeliveryTrackingBodyState extends State<DeliveryTrackingBody> {
               borderRadius: BorderRadius.circular(18),
             ),
             child: ScrollableTable(
+                stickyHeader: pinned,
               minWidth: 1100,
               header: Row(
                 children: const [
@@ -116,10 +97,32 @@ class _DeliveryTrackingBodyState extends State<DeliveryTrackingBody> {
                   ),
               ],
             ),
+          );
+
+  @override
+  Widget build(BuildContext context) {
+    return PinnedPage(
+        header: [
+          PageHeader(
+            title: widget.title,
+            subtitle: widget.subtitle,
+            searchHint: widget.searchHint,
+            onSearchChanged: (v) => setState(() => _query = v),
           ),
-        ],
-      ),
-    );
+          const SizedBox(height: 20),
+          _StatsRow(
+            inTransit: _countWhere('In Transit'),
+            outForDelivery: _countWhere('Out for Delivery'),
+            delivered: _countWhere('Delivered'),
+            delayed: _countWhere('Delayed'),
+            failedDelivery: _countWhere('Failed Delivery'),
+          ),
+          const SizedBox(height: 20),
+          ],
+        body: (pinned) => Column(children: [
+          if (pinned) Expanded(child: _table(pinned)) else _table(pinned),
+        ]),
+      );
   }
 }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
+import '../admin/detail_host.dart';
 import '../sidebar/app_sidebar.dart';
 import '../top_bar/top_bar.dart';
 
@@ -36,7 +37,8 @@ class AppShell extends StatelessWidget {
                     children: [
                       TopBar(breadcrumbTrail: 'Pholders', currentPage: currentPage),
                       const SizedBox(height: 24),
-                      Expanded(child: body),
+                      // Record details open here in place of the screen's table.
+                      Expanded(child: AdminDetailHost(child: body)),
                     ],
                   ),
                 ),

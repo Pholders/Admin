@@ -11,6 +11,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await setupServiceLocator();
   final store = await createAppStore();
+  // A saved session (including after a browser refresh) loads every screen's
+  // data up front instead of each table loading when it is opened.
+  if (store.state.authState.isAuthenticated) {
+    store.dispatch(const PrefetchAdminDataAction());
+  }
 
   runApp(PholdersAdminApp(store: store));
 }

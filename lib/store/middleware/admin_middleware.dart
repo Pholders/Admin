@@ -30,6 +30,11 @@ import '../state/app_state.dart';
 ///   routingCandidates    latitude, longitude
 ///   routingStatistics    start_date, end_date
 ///   systemLogs           lines
+///   orders, payments, appointments, prescriptions, supportTickets, reviews,
+///   securityAlerts       the endpoint's filters plus limit/offset, passed
+///                        through as the query string unchanged
+///   suspiciousUsers      hours, threshold
+///   securityReport       from, to (yyyy-MM-dd, both optional)
 class AdminMiddleware {
   AdminMiddleware({required this.api});
 
@@ -38,7 +43,64 @@ class AdminMiddleware {
   List<Middleware<AppState>> get middleware => [
         TypedMiddleware<AppState, FetchAdminResourceAction>(_handleFetch),
         TypedMiddleware<AppState, AdminMutationAction>(_handleMutation),
+        TypedMiddleware<AppState, FetchAdminRecordAction>(_handleRecord),
+        TypedMiddleware<AppState, PrefetchAdminDataAction>(_handlePrefetch),
+        TypedMiddleware<AppState, LoginSuccessAction>(_handleSignedIn),
       ];
+
+  void _handlePrefetch(
+    Store<AppState> store,
+    PrefetchAdminDataAction action,
+    NextDispatcher next,
+  ) {
+    next(action);
+    if (!store.state.authState.isAuthenticated) return;
+    for (final (resource, params) in adminStartupLoads) {
+      store.dispatch(FetchAdminResourceAction(resource, params: params));
+    }
+  }
+
+  /// A fresh sign-in loads everything, as an app start does.
+  void _handleSignedIn(
+    Store<AppState> store,
+    LoginSuccessAction action,
+    NextDispatcher next,
+  ) {
+    next(action);
+    store.dispatch(const PrefetchAdminDataAction());
+  }
+
+  Future<void> _handleRecord(
+    Store<AppState> store,
+    FetchAdminRecordAction action,
+    NextDispatcher next,
+  ) async {
+    next(action);
+    try {
+      action.completer.complete(await _loadRecord(action.kind, action.id));
+    } catch (error) {
+      _reportUnauthorized(store, error);
+      action.completer.completeError(
+          error is Failure ? error : ServerFailure(_message(error)));
+    }
+  }
+
+  Future<dynamic> _loadRecord(AdminRecordKind kind, Object id) {
+    switch (kind) {
+      case AdminRecordKind.order:
+        return api.getOrder(id);
+      case AdminRecordKind.payment:
+        return api.getPayment(id);
+      case AdminRecordKind.appointment:
+        return api.getAppointment(id);
+      case AdminRecordKind.prescription:
+        return api.getPrescription(id);
+      case AdminRecordKind.supportTicket:
+        return api.getTicket(id);
+      case AdminRecordKind.securityAlert:
+        return api.getSecurityAlert(id);
+    }
+  }
 
   Future<void> _handleFetch(
     Store<AppState> store,
@@ -173,6 +235,30 @@ class AdminMiddleware {
 
       case AdminResource.systemLogs:
         return api.systemLogs(lines: asInt('lines') ?? 100);
+
+      case AdminResource.orders:
+        return api.listOrders(p);
+      case AdminResource.payments:
+        return api.listPayments(p);
+      case AdminResource.appointments:
+        return api.listAppointments(p);
+      case AdminResource.prescriptions:
+        return api.listPrescriptions(p);
+      case AdminResource.supportTickets:
+        return api.listTickets(p);
+      case AdminResource.reviews:
+        return api.listReviews(p);
+      case AdminResource.securityAlertStats:
+        return api.securityAlertStats();
+      case AdminResource.securityAlerts:
+        return api.listSecurityAlerts(p);
+      case AdminResource.suspiciousUsers:
+        return api.suspiciousUsers(
+          hours: asInt('hours') ?? 24,
+          threshold: asInt('threshold') ?? 3,
+        );
+      case AdminResource.securityReport:
+        return api.securityReport(from: asString('from'), to: asString('to'));
     }
   }
 
@@ -250,6 +336,29 @@ class AdminMiddleware {
           reason: action.reason);
     }
     if (action is TestStripeConnectionAction) return api.testStripe();
+
+    if (action is UpdateTicketAction) {
+      return api.updateTicket(action.ticketId,
+          status: action.status, priority: action.priority);
+    }
+    if (action is ReplyToTicketAction) {
+      return api.replyToTicket(action.ticketId, action.message);
+    }
+    if (action is SetReviewVisibilityAction) {
+      return api.setReviewVisibility(action.reviewId,
+          hidden: action.hidden, reason: action.reason);
+    }
+    if (action is DeleteReviewAction) return api.deleteReview(action.reviewId);
+    if (action is ReviewSecurityAlertAction) {
+      return api.reviewSecurityAlert(action.alertId,
+          status: action.status,
+          adminNotes: action.adminNotes,
+          actionTaken: action.actionTaken);
+    }
+    if (action is BulkReviewSecurityAlertsAction) {
+      return api.bulkReviewSecurityAlerts(action.alertIds,
+          status: action.status, actionReason: action.actionReason);
+    }
 
     throw UnsupportedError('No handler for ${action.runtimeType}');
   }

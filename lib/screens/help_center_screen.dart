@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_redux/flutter_redux.dart';
+
+import 'package:pholders_admin/store.dart';
+import '../widgets/admin/admin_ui.dart';
 import '../models/faq_item.dart';
 import '../models/support_ticket.dart';
 import '../theme/app_colors.dart';
@@ -70,6 +74,13 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
   int _ticketCountFor(String category) => _tickets.where((t) => t.category == category).length;
 
   void _setTab(_HelpTab tab) {
+    // Tickets live on their own screen, backed by the support API; this
+    // tab's sample rows are no longer shown.
+    if (tab == _HelpTab.tickets) {
+      StoreProvider.of<AppState>(context, listen: false)
+          .dispatch(const NavigateToAction('support_tickets'));
+      return;
+    }
     setState(() {
       _tab = tab;
       _query = '';
@@ -154,10 +165,9 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
 
     return AppShell(
       currentPage: 'Help Center',
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: PinnedPage(
+          sections: true,
+          header: [
             if (_tab == _HelpTab.faqs)
               PageHeader(
                 title: title,
@@ -188,6 +198,8 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
             const SizedBox(height: 16),
             _TabPills(selected: _tab, onSelect: _setTab),
             const SizedBox(height: 20),
+          ],
+          body: (_) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             if (_tab == _HelpTab.faqs)
               _FaqSection(
                 categories: _categories,
@@ -205,8 +217,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                 faqCountFor: _faqCountFor,
                 ticketCountFor: _ticketCountFor,
               ),
-          ],
-        ),
+          ]),
       ),
     );
   }

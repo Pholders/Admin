@@ -10,6 +10,9 @@ import '../common/status_badge.dart';
 import '../common/table_cell.dart';
 import '../dashboard/stat_card.dart';
 import 'admin_format.dart';
+import 'detail_host.dart';
+
+export 'detail_host.dart' show showAdminDetail, closeAdminDetail, AdminDetailHost;
 
 // ─── Store bindings ───────────────────────────────────────────────────────────
 
@@ -113,13 +116,19 @@ Future<({bool ok, dynamic data})> runAdminMutation(
   }
 }
 
+/// [isWarning] is for an action that went through only in part, e.g. a
+/// ticket reply that was saved but could not be emailed.
 void showAdminSnack(ScaffoldMessengerState? messenger, String message,
-    {bool isError = false}) {
+    {bool isError = false, bool isWarning = false}) {
   messenger
     ?..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(
       content: Text(message),
-      backgroundColor: isError ? AppColors.danger : AppColors.chipBlack,
+      backgroundColor: isError
+          ? AppColors.danger
+          : isWarning
+              ? const Color(0xFFB7791F)
+              : AppColors.chipBlack,
       behavior: SnackBarBehavior.floating,
       width: 420,
     ));
@@ -1042,6 +1051,17 @@ class AdminDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Opened with showAdminDetail inside a screen: fill the table's place.
+    final inline = AdminDetailScope.maybeOf(context);
+    if (inline != null) {
+      return _InlineDetailPanel(
+        title: title,
+        subtitle: subtitle,
+        actions: actions,
+        nested: inline.depth > 0,
+        child: child,
+      );
+    }
     return Dialog(
       backgroundColor: AppColors.cardBackground,
       surfaceTintColor: Colors.transparent,
@@ -1078,7 +1098,7 @@ class AdminDialog extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => closeAdminDetail(context),
                     icon: const Icon(Icons.close,
                         size: 18, color: AppColors.textSecondary),
                   ),
@@ -1104,6 +1124,79 @@ class AdminDialog extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// [AdminDialog]'s look when it is shown in place of a table: a full-height
+/// card with Back above the title, the body scrolling, and the actions
+/// pinned at the bottom.
+class _InlineDetailPanel extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final Widget child;
+  final List<Widget> actions;
+
+  /// Opened from another detail, so Back returns to that detail.
+  final bool nested;
+
+  const _InlineDetailPanel({
+    required this.title,
+    required this.child,
+    required this.actions,
+    required this.nested,
+    this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextButton.icon(
+          onPressed: () => closeAdminDetail(context),
+          icon: const Icon(Icons.arrow_back, size: 16),
+          label: Text(nested ? 'Back' : 'Back to list', style: const TextStyle(fontSize: 13)),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.textSecondary,
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: SectionCard(
+            expand: true,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 4),
+                  Text(subtitle!,
+                      style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                ],
+                const SizedBox(height: 18),
+                Expanded(child: SingleChildScrollView(child: child)),
+                if (actions.isNotEmpty) ...[
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    child: Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: actions,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1148,5 +1241,101 @@ class ScreenTitle extends StatelessWidget {
         ],
       ],
     );
+  }
+}
+
+// ─── Pinned page layout ───────────────────────────────────────────────────────
+
+/// Below this height there is no room to pin a page's header and still show
+/// a useful number of rows, so the whole page scrolls instead.
+const minPinnedHeight = 560.0;
+
+/// A screen body whose [header] (title, filters, stats) stays put.
+///
+/// For a page built around one table, [body] gets `pinned: true` when there
+/// is room, and must then fill the height it is given (see [TableCard]): the
+/// table keeps its column headings and only its rows scroll. With
+/// [sections], the body is several blocks that scroll together under the
+/// pinned header. On a short window the whole page scrolls.
+class PinnedPage extends StatelessWidget {
+  final List<Widget> header;
+  final Widget Function(bool pinned) body;
+  final bool sections;
+
+  const PinnedPage({
+    super.key,
+    required this.header,
+    required this.body,
+    this.sections = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, constraints) {
+      final pinned = constraints.maxHeight >= minPinnedHeight;
+      if (!pinned) {
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [...header, body(false)],
+          ),
+        );
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ...header,
+          Expanded(
+            child: sections
+                ? SingleChildScrollView(child: body(false))
+                : body(true),
+          ),
+        ],
+      );
+    });
+  }
+}
+
+/// A [SectionCard] around one table's [AsyncContent]. When [pinned], it fills
+/// the remaining height of a [Column] and [builder] should build its table
+/// with `stickyHeader: true`.
+class TableCard extends StatelessWidget {
+  final bool pinned;
+  final RemoteData data;
+  final VoidCallback? onRetry;
+  final Widget Function(dynamic data) builder;
+  final String? title;
+  final String? subtitle;
+  final Widget? trailing;
+  final String idleMessage;
+
+  const TableCard({
+    super.key,
+    required this.pinned,
+    required this.data,
+    required this.builder,
+    this.onRetry,
+    this.title,
+    this.subtitle,
+    this.trailing,
+    this.idleMessage = 'Nothing loaded yet.',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final card = SectionCard(
+      expand: pinned,
+      title: title,
+      subtitle: subtitle,
+      trailing: trailing,
+      child: AsyncContent(
+        data: data,
+        expand: pinned,
+        onRetry: onRetry,
+        idleMessage: idleMessage,
+        builder: builder,
+      ),
+    );
+    return pinned ? Expanded(child: card) : card;
   }
 }

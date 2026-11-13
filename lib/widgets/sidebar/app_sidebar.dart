@@ -22,10 +22,19 @@ class AppSidebar extends StatelessWidget {
         NavItem(label: 'Patients', route: 'patients'),
         NavItem(label: 'Doctors', route: 'doctors'),
         NavItem(label: 'Pharmacies', route: 'pharmacies'),
+        NavItem(label: 'Doctor Reviews', route: 'reviews'),
       ],
     ),
     const NavSection(
-      title: 'Prescriptions',
+      title: 'Care',
+      icon: Icons.medical_services_outlined,
+      items: [
+        NavItem(label: 'Appointments', route: 'appointments'),
+        NavItem(label: 'Prescriptions', route: 'prescriptions'),
+      ],
+    ),
+    const NavSection(
+      title: 'Orders',
       icon: Icons.medication_outlined,
       items: [
         NavItem(label: 'All Orders', route: 'all_orders'),
@@ -52,8 +61,17 @@ class AppSidebar extends StatelessWidget {
       title: 'Security',
       icon: Icons.shield_outlined,
       items: [
+        NavItem(label: 'Security Alerts', route: 'security_alerts'),
         NavItem(label: 'Security Overview', route: 'security'),
         NavItem(label: 'Login Locations', route: 'login_locations'),
+      ],
+    ),
+    const NavSection(
+      title: 'Support',
+      icon: Icons.support_agent_outlined,
+      items: [
+        NavItem(label: 'Support Tickets', route: 'support_tickets'),
+        NavItem(label: 'Help Center', route: 'help_center'),
       ],
     ),
     const NavSection(
@@ -62,7 +80,6 @@ class AppSidebar extends StatelessWidget {
       items: [
         NavItem(label: 'Settings', route: 'settings'),
         NavItem(label: 'Payment Gateways', route: 'payment_gateways'),
-        NavItem(label: 'Help Center', route: 'help_center'),
         NavItem(label: 'My Account', route: 'account'),
         NavItem(label: 'Admin Tools', route: 'admin_tools'),
       ],
@@ -179,17 +196,57 @@ class _NavRow extends StatelessWidget {
                   ? const Border(left: BorderSide(color: AppColors.primary, width: 3))
                   : null,
             ),
-            child: Text(
-              item.label,
-              style: TextStyle(
-                fontSize: 13.5,
-                color: selected ? AppColors.primaryDark : AppColors.textSecondary,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            child: Row(children: [
+              Expanded(
+                child: Text(
+                  item.label,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    color: selected ? AppColors.primaryDark : AppColors.textSecondary,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
               ),
-            ),
+              if (item.route == 'security_alerts') const _AlertCountBadge(),
+            ]),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Unreviewed critical and high alerts, all time. Loaded once per session
+/// and refetched after every alert review.
+class _AlertCountBadge extends StatelessWidget {
+  const _AlertCountBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return StoreConnector<AppState, num>(
+      onInit: (store) {
+        if (store.state.adminState.of(AdminResource.securityAlertStats).isIdle) {
+          store.dispatch(const FetchAdminResourceAction(AdminResource.securityAlertStats));
+        }
+      },
+      converter: (store) {
+        final data = store.state.adminState.of(AdminResource.securityAlertStats).data;
+        final n = data is Map ? data['unreviewed_critical_or_high'] : null;
+        return n is num ? n : num.tryParse('${n ?? ''}') ?? 0;
+      },
+      distinct: true,
+      builder: (context, count) {
+        if (count <= 0) return const SizedBox.shrink();
+        return Tooltip(
+          message: '$count critical or high alerts waiting for review',
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(color: AppColors.danger, borderRadius: BorderRadius.circular(10)),
+            child: Text(count > 99 ? '99+' : '$count',
+                style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700)),
+          ),
+        );
+      },
     );
   }
 }

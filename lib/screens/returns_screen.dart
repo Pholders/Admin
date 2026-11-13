@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/admin/admin_ui.dart';
 import '../models/prescription_return.dart';
 import '../theme/app_colors.dart';
 import '../widgets/common/page_header.dart';
@@ -46,30 +47,7 @@ class _ReturnsScreenState extends State<ReturnsScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return AppShell(
-      currentPage: 'Prescriptions',
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            PageHeader(
-              title: 'Returns',
-              subtitle: 'Manage returned prescription orders',
-              searchHint: 'Search prescription',
-              onSearchChanged: (v) => setState(() => _query = v),
-            ),
-            const SizedBox(height: 20),
-            _StatsRow(
-              total: _returns.length,
-              pendingReview: _countWhere('Pending Review'),
-              approved: _countWhere('Approved'),
-              rejected: _countWhere('Rejected'),
-              returned: 19,
-            ),
-            const SizedBox(height: 20),
-            Container(
+  Widget _table(bool pinned) => Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -77,6 +55,7 @@ class _ReturnsScreenState extends State<ReturnsScreen> {
                 borderRadius: BorderRadius.circular(18),
               ),
               child: ScrollableTable(
+                stickyHeader: pinned,
                 minWidth: 1120,
                 header: Row(
                   children: const [
@@ -100,9 +79,33 @@ class _ReturnsScreenState extends State<ReturnsScreen> {
                     ),
                 ],
               ),
+            );
+
+  @override
+  Widget build(BuildContext context) {
+    return AppShell(
+      currentPage: 'Prescriptions',
+      body: PinnedPage(
+        header: [
+            PageHeader(
+              title: 'Returns',
+              subtitle: 'Manage returned prescription orders',
+              searchHint: 'Search prescription',
+              onSearchChanged: (v) => setState(() => _query = v),
             ),
-          ],
-        ),
+            const SizedBox(height: 20),
+            _StatsRow(
+              total: _returns.length,
+              pendingReview: _countWhere('Pending Review'),
+              approved: _countWhere('Approved'),
+              rejected: _countWhere('Rejected'),
+              returned: 19,
+            ),
+            const SizedBox(height: 20),
+            ],
+        body: (pinned) => Column(children: [
+          if (pinned) Expanded(child: _table(pinned)) else _table(pinned),
+        ]),
       ),
     );
   }

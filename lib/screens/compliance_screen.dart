@@ -16,10 +16,9 @@ class ComplianceScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppShell(
       currentPage: 'Compliance',
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: PinnedPage(
+          sections: true,
+          header: [
             ScreenTitle(
               title: 'Compliance',
               subtitle: 'How partners are meeting their agreement SLAs',
@@ -32,13 +31,14 @@ class ComplianceScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 20),
-            const _Dashboard(),
-            const SizedBox(height: 18),
-            const _PharmacyLookup(),
-            const SizedBox(height: 18),
-            const _Report(),
           ],
-        ),
+          body: (_) => const Column(children: [
+            _Dashboard(),
+            SizedBox(height: 18),
+            _PharmacyLookup(),
+            SizedBox(height: 18),
+            _Report(),
+          ]),
       ),
     );
   }

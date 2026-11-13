@@ -25,10 +25,9 @@ class _SecurityOverviewScreenState extends State<SecurityOverviewScreen> {
   Widget build(BuildContext context) {
     return AppShell(
       currentPage: 'Security Overview',
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: PinnedPage(
+          sections: true,
+          header: [
             ScreenTitle(
               title: 'Security Overview',
               subtitle: 'Sign-in activity and location alerts from the audit log',
@@ -49,7 +48,8 @@ class _SecurityOverviewScreenState extends State<SecurityOverviewScreen> {
               },
             ),
             const SizedBox(height: 18),
-            AdminResourceBuilder(
+          ],
+          body: (_) => AdminResourceBuilder(
               resource: AdminResource.securityDashboard,
               load: {'hours': _hours},
               builder: (context, data) => AsyncContent(
@@ -57,9 +57,7 @@ class _SecurityOverviewScreenState extends State<SecurityOverviewScreen> {
                 onRetry: () => reloadAdmin(context, AdminResource.securityDashboard),
                 builder: (raw) => _Dashboard(data: mapOf(raw)),
               ),
-            ),
-          ],
-        ),
+          ),
       ),
     );
   }
@@ -182,84 +180,85 @@ class _LoginLocationsScreenState extends State<LoginLocationsScreen> {
   Widget build(BuildContext context) {
     return AppShell(
       currentPage: 'Login Locations',
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const ScreenTitle(
-              title: 'Login Locations',
-              subtitle: 'Where a user has signed in from, grouped by city',
-            ),
-            const SizedBox(height: 20),
-            SectionCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    spacing: 14,
-                    runSpacing: 14,
-                    crossAxisAlignment: WrapCrossAlignment.end,
-                    children: [
-                      SizedBox(
-                        width: 220,
-                        child: LabeledField(
-                          label: 'User ID',
-                          required: true,
-                          child: AdminTextInput(
-                              controller: _userId, hint: 'e.g. 42', onSubmitted: (_) => _search()),
-                        ),
-                      ),
-                      LabeledField(
-                        label: 'Period',
-                        child: FilterPills<int>(
-                          options: const [(7, '7 days'), (30, '30 days'), (90, '90 days'), (365, '1 year')],
-                          selected: _days,
-                          onSelected: (v) {
-                            setState(() => _days = v);
-                            if (_userId.text.trim().isNotEmpty) _search();
-                          },
-                        ),
-                      ),
-                      PrimaryButton(label: 'Look Up', icon: Icons.search, onPressed: _search),
-                    ],
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 12),
-                    ErrorPanel(message: _error!, compact: true),
-                  ],
-                  const SizedBox(height: 6),
-                  const Text(
-                    'User IDs are shared across patients, doctors, pharmacies and admins in the audit log.',
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 16),
-                  AdminResourceBuilder(
-                    resource: AdminResource.userLocations,
-                    builder: (context, data) => AsyncContent(
-                      data: data,
-                      idleMessage: 'Enter a user ID to see where they have signed in from.',
-                      onRetry: () => reloadAdmin(context, AdminResource.userLocations),
-                      builder: (raw) => RecordTable(
-                        rows: recordsOf(raw, ['locations']),
-                        emptyMessage: 'No sign-ins recorded for this user in this period.',
-                        columns: [
-                          RecordColumn('Location',
-                              width: 240,
-                              cell: (r) => CellText(
-                                  [r['city'], r['country']].where((v) => v != null).join(', ').ifEmpty('Unknown'),
-                                  strong: true)),
-                          const RecordColumn('Time Zone', field: 'timezone', width: 170),
-                          const RecordColumn('Sign-ins', field: 'login_count', width: 100),
-                          const RecordColumn('First Seen', field: 'first_login', width: 170),
-                          const RecordColumn('Last Seen', field: 'last_login', width: 170),
-                        ],
+      body: PinnedPage(
+        header: [
+          const ScreenTitle(
+            title: 'Login Locations',
+            subtitle: 'Where a user has signed in from, grouped by city',
+          ),
+          const SizedBox(height: 20),
+          SectionCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 14,
+                  runSpacing: 14,
+                  crossAxisAlignment: WrapCrossAlignment.end,
+                  children: [
+                    SizedBox(
+                      width: 220,
+                      child: LabeledField(
+                        label: 'User ID',
+                        required: true,
+                        child: AdminTextInput(
+                            controller: _userId, hint: 'e.g. 42', onSubmitted: (_) => _search()),
                       ),
                     ),
-                  ),
+                    LabeledField(
+                      label: 'Period',
+                      child: FilterPills<int>(
+                        options: const [(7, '7 days'), (30, '30 days'), (90, '90 days'), (365, '1 year')],
+                        selected: _days,
+                        onSelected: (v) {
+                          setState(() => _days = v);
+                          if (_userId.text.trim().isNotEmpty) _search();
+                        },
+                      ),
+                    ),
+                    PrimaryButton(label: 'Look Up', icon: Icons.search, onPressed: _search),
+                  ],
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  ErrorPanel(message: _error!, compact: true),
+                ],
+                const SizedBox(height: 6),
+                const Text(
+                  'User IDs are shared across patients, doctors, pharmacies and admins in the audit log.',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+        ],
+        body: (pinned) => AdminResourceBuilder(
+          resource: AdminResource.userLocations,
+          builder: (context, data) => Column(children: [
+            TableCard(
+              pinned: pinned,
+              data: data,
+              idleMessage: 'Enter a user ID to see where they have signed in from.',
+              onRetry: () => reloadAdmin(context, AdminResource.userLocations),
+              builder: (raw) => RecordTable(
+                rows: recordsOf(raw, ['locations']),
+                stickyHeader: pinned,
+                emptyMessage: 'No sign-ins recorded for this user in this period.',
+                columns: [
+                  RecordColumn('Location',
+                      width: 240,
+                      cell: (r) => CellText(
+                          [r['city'], r['country']].where((v) => v != null).join(', ').ifEmpty('Unknown'),
+                          strong: true)),
+                  const RecordColumn('Time Zone', field: 'timezone', width: 170),
+                  const RecordColumn('Sign-ins', field: 'login_count', width: 100),
+                  const RecordColumn('First Seen', field: 'first_login', width: 170),
+                  const RecordColumn('Last Seen', field: 'last_login', width: 170),
                 ],
               ),
             ),
-          ],
+          ]),
         ),
       ),
     );

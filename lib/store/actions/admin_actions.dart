@@ -309,3 +309,204 @@ class TestStripeConnectionAction extends AdminMutationAction {
   @override
   String get key => 'maintenance.stripeTest';
 }
+
+// ─── Admin records ────────────────────────────────────────────────────────────
+
+/// Loads one record for a detail dialog and hands it back through
+/// [completer] instead of the store (see [AdminRecordKind]). A 401 still ends
+/// the session.
+class FetchAdminRecordAction {
+  final AdminRecordKind kind;
+  final Object id;
+  final Completer<dynamic> completer;
+
+  FetchAdminRecordAction(this.kind, this.id, this.completer);
+}
+
+const _alertResources = [
+  AdminResource.securityAlerts,
+  AdminResource.securityAlertStats,
+  AdminResource.suspiciousUsers,
+  AdminResource.securityReport,
+];
+
+/// Changes a ticket's [status] and/or [priority]; at least one is required.
+/// Completes with the updated ticket, replies included.
+class UpdateTicketAction extends AdminMutationAction {
+  static const statuses = ['open', 'in_progress', 'resolved', 'closed'];
+  static const priorities = ['low', 'normal', 'high', 'urgent'];
+
+  final Object ticketId;
+  final String? status;
+  final String? priority;
+
+  UpdateTicketAction(this.ticketId,
+      {this.status, this.priority, super.completer})
+      : assert(status != null || priority != null,
+            'Send a status or a priority'),
+        assert(status == null || statuses.contains(status)),
+        assert(priority == null || priorities.contains(priority));
+
+  @override
+  String get key => 'ticket.$ticketId.update';
+
+  @override
+  List<AdminResource> get refreshes => const [AdminResource.supportTickets];
+}
+
+/// Emails [message] to the ticket's address. Completes with
+/// `{email_sent, ticket}`; `email_sent: false` means the reply was saved but
+/// not emailed — it must not be resent, which would save a duplicate.
+class ReplyToTicketAction extends AdminMutationAction {
+  static const maxLength = 5000;
+
+  final Object ticketId;
+  final String message;
+
+  const ReplyToTicketAction(this.ticketId, this.message, {super.completer});
+
+  @override
+  String get key => 'ticket.$ticketId.reply';
+
+  @override
+  List<AdminResource> get refreshes => const [AdminResource.supportTickets];
+}
+
+/// Hides a review from the doctor's public page (and their rating), or shows
+/// it again. [reason] is required when hiding.
+class SetReviewVisibilityAction extends AdminMutationAction {
+  static const maxReasonLength = 500;
+
+  final Object reviewId;
+  final bool hidden;
+  final String? reason;
+
+  SetReviewVisibilityAction(this.reviewId,
+      {required this.hidden, this.reason, super.completer})
+      : assert(!hidden || (reason != null && reason.trim().isNotEmpty),
+            'A reason is required to hide a review');
+
+  @override
+  String get key => 'review.$reviewId';
+
+  @override
+  List<AdminResource> get refreshes => const [AdminResource.reviews];
+}
+
+/// Permanent. Prefer [SetReviewVisibilityAction].
+class DeleteReviewAction extends AdminMutationAction {
+  final Object reviewId;
+
+  const DeleteReviewAction(this.reviewId, {super.completer});
+
+  @override
+  String get key => 'review.$reviewId';
+
+  @override
+  List<AdminResource> get refreshes => const [AdminResource.reviews];
+}
+
+/// Marks an alert `verified_legit`, `verified_threat` or `dismissed`.
+/// `verified_threat` signs the account out of every device and emails its
+/// owner. Completes with the updated alert plus `sessions_revoked`.
+class ReviewSecurityAlertAction extends AdminMutationAction {
+  static const statuses = ['verified_legit', 'verified_threat', 'dismissed'];
+
+  final Object alertId;
+  final String status;
+  final String? adminNotes;
+  final String? actionTaken;
+
+  ReviewSecurityAlertAction(this.alertId,
+      {required this.status,
+      this.adminNotes,
+      this.actionTaken,
+      super.completer})
+      : assert(statuses.contains(status));
+
+  @override
+  String get key => 'alert.$alertId.review';
+
+  @override
+  List<AdminResource> get refreshes => _alertResources;
+}
+
+/// Reviews up to [maxIds] alerts at once. Completes with
+/// `{updated_count, not_found, sessions_revoked}`.
+class BulkReviewSecurityAlertsAction extends AdminMutationAction {
+  static const maxIds = 200;
+
+  final List<Object> alertIds;
+  final String status;
+  final String? actionReason;
+
+  BulkReviewSecurityAlertsAction(this.alertIds,
+      {required this.status, this.actionReason, super.completer})
+      : assert(alertIds.isNotEmpty && alertIds.length <= maxIds),
+        assert(ReviewSecurityAlertAction.statuses.contains(status));
+
+  @override
+  String get key => 'alert.bulkReview';
+
+  @override
+  List<AdminResource> get refreshes => _alertResources;
+}
+
+// ─── Startup ──────────────────────────────────────────────────────────────────
+
+/// Loads every screen's first view at once, so tables are already filled when
+/// the admin opens them. Dispatched when the app starts with a saved session
+/// (which includes a browser refresh) and after signing in.
+///
+/// Always refetches, even resources already in the store.
+class PrefetchAdminDataAction {
+  const PrefetchAdminDataAction();
+}
+
+/// What [PrefetchAdminDataAction] loads. Each entry's params must equal what
+/// its screen first asks for, or the screen fetches again when it opens
+/// (`test/admin_prefetch_test.dart` checks this).
+///
+/// Left out on purpose: detail views (fetched when opened; a prescription
+/// open is audit-logged), and lookups that need input first (login
+/// locations, compliance report, routing candidates, system logs).
+const adminStartupLoads = <(AdminResource, Map<String, dynamic>)>[
+  // Dashboard
+  (AdminResource.dashboardSummary, {}),
+  (AdminResource.dashboardActivity, {'range': 'monthly'}),
+  (AdminResource.recentUsers, {'role': 'all', 'limit': 6}),
+
+  // Accounts
+  (AdminResource.patients, {'limit': 200, 'offset': 0}),
+  (AdminResource.doctors, {'limit': 200, 'offset': 0}),
+  (AdminResource.pharmacies, {'limit': 200, 'offset': 0}),
+  (AdminResource.reviews, {'limit': 50, 'offset': 0}),
+
+  // Records
+  (AdminResource.appointments, {'limit': 50, 'offset': 0}),
+  (AdminResource.prescriptions, {'limit': 50, 'offset': 0}),
+  (AdminResource.orders, {'limit': 50, 'offset': 0}),
+  (AdminResource.payments, {'limit': 50, 'offset': 0}),
+
+  // Partnerships
+  (AdminResource.groups, {'is_active': true}),
+  (AdminResource.agreements, {}),
+  (AdminResource.complianceDashboard, {}),
+  (AdminResource.routingStatistics, {}),
+  (AdminResource.routingByTier, {}),
+
+  // Security
+  (AdminResource.securityAlertStats, {}),
+  (AdminResource.securityAlerts, {'status': 'unreviewed', 'limit': 50, 'offset': 0}),
+  (AdminResource.suspiciousUsers, {'hours': 24, 'threshold': 3}),
+  (AdminResource.securityReport, {}),
+  (AdminResource.securityDashboard, {'hours': 24}),
+
+  // Support
+  (AdminResource.supportTickets, {'limit': 50, 'offset': 0}),
+
+  // My account
+  (AdminResource.profile, {}),
+  (AdminResource.sessions, {}),
+  (AdminResource.activityLog, {'limit': 50}),
+];

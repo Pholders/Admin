@@ -15,9 +15,7 @@ import 'package:pholders_admin/screens/patients_screen.dart';
 import 'package:pholders_admin/screens/pharmacies_screen.dart';
 import 'package:pholders_admin/screens/partner_groups_screen.dart';
 import 'package:pholders_admin/screens/help_center_screen.dart';
-import 'package:pholders_admin/screens/returns_screen.dart';
 import 'package:pholders_admin/screens/security_screens.dart';
-import 'package:pholders_admin/screens/tracking_screen.dart';
 import 'package:pholders_admin/store.dart';
 import 'package:pholders_admin/widgets/dashboard/stat_card.dart';
 import 'package:redux/redux.dart';
@@ -519,10 +517,8 @@ void main() {
     );
   });
 
-  testWidgets('Returns, Tracking and Help Center lay out with their headers pinned', (tester) async {
+  testWidgets('Help Center lays out with their headers pinned', (tester) async {
     for (final (screen, title, row) in const [
-      (ReturnsScreen(), 'Manage returned prescription orders', 'Return ID'),
-      (TrackingScreen(), 'Track delivery status of prescription orders', null),
       (HelpCenterScreen(), 'Manage frequently asked questions', null),
     ]) {
       await _pump(tester, screen, size: const Size(1920, 760));

@@ -38,8 +38,8 @@ class AppSidebar extends StatelessWidget {
       icon: Icons.medication_outlined,
       items: [
         NavItem(label: 'All Orders', route: 'all_orders'),
-        NavItem(label: 'Returns', route: 'returns'),
         NavItem(label: 'Tracking', route: 'tracking'),
+        NavItem(label: 'Overdue Orders', route: 'overdue_orders'),
       ],
     ),
     const NavSection(
@@ -207,7 +207,8 @@ class _NavRow extends StatelessWidget {
                   ),
                 ),
               ),
-              if (item.route == 'security_alerts') const _AlertCountBadge(),
+              if (item.route == 'security_alerts') _CountBadge.alerts,
+              if (item.route == 'overdue_orders') _CountBadge.overdueOrders,
             ]),
           ),
         ),
@@ -216,29 +217,47 @@ class _NavRow extends StatelessWidget {
   }
 }
 
-/// Unreviewed critical and high alerts, all time. Loaded once per session
-/// and refetched after every alert review.
-class _AlertCountBadge extends StatelessWidget {
-  const _AlertCountBadge();
+/// A red count beside a sidebar item, read from a stats endpoint that is
+/// loaded once per session (with no params, as the startup prefetch does)
+/// and refetched whenever that screen reloads it. Hidden at zero.
+class _CountBadge extends StatelessWidget {
+  final AdminResource resource;
+  final dynamic Function(Map data) read;
+  final String Function(num count) tooltip;
+
+  const _CountBadge(this.resource, this.read, this.tooltip);
+
+  /// Unreviewed critical and high alerts, all time.
+  static const alerts = _CountBadge(
+      AdminResource.securityAlertStats, _unreviewedAlerts, _alertsTooltip);
+
+  /// Orders in progress that are past their status's time limit, right now.
+  static const overdueOrders = _CountBadge(
+      AdminResource.orderTrackingStats, _overdueOrders, _overdueTooltip);
+
+  static dynamic _unreviewedAlerts(Map d) => d['unreviewed_critical_or_high'];
+  static String _alertsTooltip(num n) => '$n critical or high alerts waiting for review';
+  static dynamic _overdueOrders(Map d) => d['active'] is Map ? d['active']['overdue'] : null;
+  static String _overdueTooltip(num n) => '$n orders overdue right now';
 
   @override
   Widget build(BuildContext context) {
     return StoreConnector<AppState, num>(
       onInit: (store) {
-        if (store.state.adminState.of(AdminResource.securityAlertStats).isIdle) {
-          store.dispatch(const FetchAdminResourceAction(AdminResource.securityAlertStats));
+        if (store.state.adminState.of(resource).isIdle) {
+          store.dispatch(FetchAdminResourceAction(resource));
         }
       },
       converter: (store) {
-        final data = store.state.adminState.of(AdminResource.securityAlertStats).data;
-        final n = data is Map ? data['unreviewed_critical_or_high'] : null;
+        final data = store.state.adminState.of(resource).data;
+        final n = data is Map ? read(data) : null;
         return n is num ? n : num.tryParse('${n ?? ''}') ?? 0;
       },
       distinct: true,
       builder: (context, count) {
         if (count <= 0) return const SizedBox.shrink();
         return Tooltip(
-          message: '$count critical or high alerts waiting for review',
+          message: tooltip(count),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
             decoration: BoxDecoration(color: AppColors.danger, borderRadius: BorderRadius.circular(10)),

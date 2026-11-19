@@ -16,6 +16,8 @@ import 'package:pholders_admin/screens/doctors_screen.dart';
 import 'package:pholders_admin/screens/partner_groups_screen.dart';
 import 'package:pholders_admin/screens/patients_screen.dart';
 import 'package:pholders_admin/screens/pharmacies_screen.dart';
+import 'package:pholders_admin/screens/tracking_screen.dart';
+import 'package:pholders_admin/screens/overdue_orders_screen.dart';
 import 'package:pholders_admin/screens/prescriptions_screen.dart';
 import 'package:pholders_admin/screens/reviews_screen.dart';
 import 'package:pholders_admin/screens/security_alerts_screen.dart';
@@ -101,7 +103,7 @@ void main() {
 
     const screens = <Widget>[
       DashboardScreen(), PatientsScreen(), DoctorsScreen(), PharmaciesScreen(), ReviewsScreen(),
-      AppointmentsScreen(), PrescriptionsScreen(), AllOrdersScreen(), BillingPaymentsScreen(),
+      AppointmentsScreen(), PrescriptionsScreen(), AllOrdersScreen(), TrackingScreen(), OverdueOrdersScreen(), BillingPaymentsScreen(),
       PartnerGroupsScreen(), AgreementsScreen(), ComplianceScreen(), ClaimRoutingScreen(),
       SecurityAlertsScreen(), SecurityOverviewScreen(), SupportTicketsScreen(), AccountScreen(),
     ];

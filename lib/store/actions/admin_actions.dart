@@ -488,6 +488,11 @@ const adminStartupLoads = <(AdminResource, Map<String, dynamic>)>[
   (AdminResource.orders, {'limit': 50, 'offset': 0}),
   (AdminResource.payments, {'limit': 50, 'offset': 0}),
 
+  // Order tracking
+  (AdminResource.orderTrackingStats, {}),
+  (AdminResource.orderTrackingPharmacies, {'limit': 50, 'offset': 0}),
+  (AdminResource.overdueOrders, {'overdue': true, 'sort': 'longest_waiting', 'limit': 50, 'offset': 0}),
+
   // Partnerships
   (AdminResource.groups, {'is_active': true}),
   (AdminResource.agreements, {}),

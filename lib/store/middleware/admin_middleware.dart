@@ -237,7 +237,12 @@ class AdminMiddleware {
         return api.systemLogs(lines: asInt('lines') ?? 100);
 
       case AdminResource.orders:
+      case AdminResource.overdueOrders:
         return api.listOrders(p);
+      case AdminResource.orderTrackingStats:
+        return api.orderTrackingStats(p);
+      case AdminResource.orderTrackingPharmacies:
+        return api.orderTrackingPharmacies(p);
       case AdminResource.payments:
         return api.listPayments(p);
       case AdminResource.appointments:

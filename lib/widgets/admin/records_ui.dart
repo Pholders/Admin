@@ -31,11 +31,14 @@ class ChoiceFilter extends RecordFilter {
   final List<(String, String)> options;
   final double width;
 
-  const ChoiceFilter(this.key, super.label, this.options, {this.width = 170});
+  /// The choice that leaves the filter out, e.g. "Newest first" for a sort.
+  final String allLabel;
+
+  const ChoiceFilter(this.key, super.label, this.options, {this.width = 170, this.allLabel = 'All'});
 
   /// Options labelled by humanizing the values: `in_progress` → `In Progress`.
   ChoiceFilter.values(this.key, String label, List<String> values,
-      {this.width = 170})
+      {this.width = 170, this.allLabel = 'All'})
       : options = [for (final v in values) (v, humanize(v))],
         super(label);
 }
@@ -161,8 +164,8 @@ class _RecordFilterBarState extends State<RecordFilterBar> {
             label: f.label,
             child: AdminDropdown<String?>(
               value: widget.values[f.key]?.toString(),
-              items: [(null, 'All'), ...f.options],
-              hint: 'All',
+              items: [(null, f.allLabel), ...f.options],
+              hint: f.allLabel,
               onChanged: (v) => _set(f.key, v),
             ),
           ),
@@ -701,6 +704,10 @@ class RecordListScreen extends StatefulWidget {
   final String noun;
   final List<RecordFilter> filters;
   final Map<String, dynamic> initialFilters;
+
+  /// Always sent, never shown in the filter bar or cleared by it, e.g.
+  /// `overdue=true` for a screen that only ever lists overdue orders.
+  final Map<String, dynamic> fixedFilters;
   final List<RecordColumn> Function(BuildContext context) columns;
   final void Function(BuildContext context, Map<String, dynamic> row)? onRowTap;
   final Widget Function(BuildContext context, Map<String, dynamic> row)? actions;
@@ -721,6 +728,7 @@ class RecordListScreen extends StatefulWidget {
     required this.filters,
     required this.columns,
     this.initialFilters = const {},
+    this.fixedFilters = const {},
     this.onRowTap,
     this.actions,
     this.actionsWidth = 110,
@@ -747,7 +755,7 @@ class _RecordListScreenState extends State<RecordListScreen> {
           resource: widget.resource,
           listKey: widget.listKey,
           noun: widget.noun,
-          filters: _filters,
+          filters: {...widget.fixedFilters, ..._filters},
           columns: widget.columns(context),
           onRowTap: widget.onRowTap == null ? null : (r) => widget.onRowTap!(context, r),
           actions: widget.actions == null ? null : (r) => widget.actions!(context, r),

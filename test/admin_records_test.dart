@@ -12,6 +12,8 @@ import 'package:pholders_admin/screens/prescriptions_screen.dart';
 import 'package:pholders_admin/screens/reviews_screen.dart';
 import 'package:pholders_admin/screens/security_alerts_screen.dart';
 import 'package:pholders_admin/screens/support_tickets_screen.dart';
+import 'package:pholders_admin/screens/overdue_orders_screen.dart';
+import 'package:pholders_admin/screens/tracking_screen.dart';
 import 'package:pholders_admin/store.dart';
 import 'package:pholders_admin/widgets/admin/admin_format.dart';
 import 'package:redux/redux.dart';
@@ -39,6 +41,38 @@ class _RecordsApi extends AdminApi {
     'patient_email': 'thandi@example.com', 'pharmacy_id': 3, 'pharmacy_name': 'Greenside Pharmacy',
     'created_at': '2026-11-08T09:14:02.000Z', 'updated_at': '2026-11-08T11:40:10.000Z',
     'completed_at': null, 'cancelled_at': null,
+    'status_since': '2026-11-08T11:40:10.000Z', 'hours_in_status': 30.5, 'waiting_on': 'patient',
+    'overdue_after_hours': 72, 'is_overdue': false,
+  };
+  static final _stuckOrder = {
+    ..._order, 'id': 51, 'status': 'awaiting_claim', 'pharmacy_name': 'Bryanston Central Pharmacy',
+    'hours_in_status': 590.4, 'waiting_on': 'medical_aid', 'is_overdue': true,
+  };
+  static Map<String, dynamic> _stage(int count, int overdue, num? longest, String waitingOn, int after) =>
+      {'count': count, 'overdue': overdue, 'longest_wait_hours': longest, 'waiting_on': waitingOn, 'overdue_after_hours': after};
+  static final _trackingStats = {
+    'active': {
+      'total': 5, 'overdue': 5,
+      'by_status': {
+        'pending': _stage(0, 0, null, 'pharmacy', 24),
+        'accepted': _stage(0, 0, null, 'pharmacy', 24),
+        'awaiting_claim': _stage(4, 4, 590.4, 'medical_aid', 72),
+        'claim_approved': _stage(0, 0, null, 'pharmacy', 24),
+        'claim_rejected': _stage(0, 0, null, 'patient', 48),
+        'preparing': _stage(1, 1, 150, 'pharmacy', 24),
+        'ready': _stage(0, 0, null, 'patient', 72),
+      },
+      'by_waiting_on': {
+        'pharmacy': {'count': 1, 'overdue': 1},
+        'medical_aid': {'count': 4, 'overdue': 4},
+        'patient': {'count': 0, 'overdue': 0},
+      },
+    },
+    'period': {
+      'from': '2026-10-21', 'to': '2026-11-19',
+      'created': 15, 'picked_up': 3, 'cancelled': 4, 'rejected': 3, 'still_active': 5, 'collection_rate': 30,
+      'avg_hours': {'to_accept': 36.1, 'accept_to_ready': 122.2, 'ready_to_collect': 23.4, 'order_to_collect': 145.6},
+    },
   };
   static const _prescription = {
     'id': 17, 'prescription_number': 'RX-2026-000017', 'signature_status': 'signed', 'state': 'active',
@@ -81,14 +115,31 @@ class _RecordsApi extends AdminApi {
     gets.add(path);
     queries[path] = query;
     const base = '/users/admin';
+    if (path == '$base/orders' && query?['overdue'] != null) {
+      return {'total': 1, 'limit': 50, 'offset': 0, 'orders': [_stuckOrder]};
+    }
     if (path == '$base/orders') return {'total': 137, 'limit': 50, 'offset': 0, 'orders': [_order]};
+    if (path == '$base/orders/tracking/stats') return _trackingStats;
+    if (path == '$base/orders/tracking/pharmacies') {
+      return {
+        'total': 1, 'limit': 50, 'offset': 0,
+        'pharmacies': [
+          {
+            'pharmacy_id': 17, 'pharmacy_name': 'Bryanston Central Pharmacy', 'pharmacy_email': 'bryanston@example.test',
+            'active': 5, 'overdue': 5, 'awaiting_response': 0, 'awaiting_collection': 0,
+            'created': 15, 'picked_up': 3, 'cancelled': 4, 'rejected': 3,
+            'avg_hours_to_accept': 36.1, 'avg_hours_accept_to_ready': 122.2,
+          },
+        ],
+      };
+    }
     if (path == '$base/orders/42') {
       return {
         ..._order,
         'pharmacy_notes': 'Out of stock, ordered in',
         'status_history': [
-          {'id': 1, 'from_status': null, 'to_status': 'pending', 'actor_type': 'patient', 'actor_id': 8, 'created_at': '2026-11-08T09:14:02Z'},
-          {'id': 2, 'from_status': 'pending', 'to_status': 'accepted', 'actor_type': 'pharmacy', 'actor_id': 3, 'created_at': '2026-11-08T09:20:00Z'},
+          {'id': 1, 'from_status': null, 'to_status': 'pending', 'actor_type': 'patient', 'actor_id': 8, 'created_at': '2026-11-08T09:14:02Z', 'hours_in_status': 0.1},
+          {'id': 2, 'from_status': 'pending', 'to_status': 'accepted', 'actor_type': 'pharmacy', 'actor_id': 3, 'created_at': '2026-11-08T09:20:00Z', 'hours_in_status': 30.5},
         ],
       };
     }
@@ -474,4 +525,78 @@ void main() {
     await _tap(tester, find.text('Back to list'));
     expect(find.text('Claimed by'), findsOneWidget, reason: 'back on the table');
   });
+
+  group('order tracking', () {
+    test('waits read as minutes, hours, then days', () {
+      expect(formatHours(0.5), '30 min');
+      expect(formatHours(30.5), '31 h');
+      expect(formatHours(590.4), '24.6 days');
+      expect(formatHours(null), '—');
+      expect(waitingOnLabel('medical_aid'), 'Medical aid');
+    });
+
+    testWidgets('All Orders: time in status, overdue flag, and the tracking filters', (tester) async {
+      final (_, api) = await _pump(tester, const AllOrdersScreen());
+      expect(find.text('31 h'), findsOneWidget);
+      expect(find.text('Waiting on patient'), findsOneWidget);
+      expect(find.text('Overdue'), findsWidgets, reason: 'the filter is there');
+
+      await _tap(tester, find.text('Newest first'));
+      await _tap(tester, find.text('Longest waiting').last);
+      expect(api.queries['/users/admin/orders'], containsPair('sort', 'longest_waiting'));
+    });
+
+    testWidgets('Order detail: tracking facts and time spent in each step', (tester) async {
+      await _pump(tester, const AllOrdersScreen());
+      await _tap(tester, find.text('#42'));
+      expect(find.text('In this status for'), findsOneWidget);
+      expect(find.text('Medical aid'), findsNothing);
+      expect(find.text('Patient'), findsWidgets);
+      expect(find.textContaining('stayed 6 min'), findsOneWidget, reason: 'an earlier step');
+      expect(find.textContaining('31 h so far'), findsOneWidget, reason: 'the current step');
+    });
+
+    testWidgets('Tracking: counts, stages, overdue orders and pharmacies', (tester) async {
+      final (_, api) = await _pump(tester, const TrackingScreen());
+      expect(api.queries['/users/admin/orders'], {'overdue': true, 'sort': 'longest_waiting', 'limit': 50, 'offset': 0});
+      expect(find.text('In progress · 5 overdue'), findsOneWidget);
+      expect(find.text('Waiting on medical aid · 4 overdue'), findsOneWidget);
+      expect(find.text('24.6 days'), findsWidgets, reason: 'longest wait and the stuck order');
+      expect(find.text('30%'), findsOneWidget, reason: 'collection rate');
+      expect(find.text('Bryanston Central Pharmacy'), findsWidgets);
+
+      // A waiting-on card narrows the overdue list.
+      await _tap(tester, find.text('Waiting on medical aid · 4 overdue'));
+      expect(api.queries['/users/admin/orders'], containsPair('waiting_on', 'medical_aid'));
+      expect(find.text('Overdue orders waiting on medical aid'), findsOneWidget);
+
+      // A longer period asks for dates.
+      await _tap(tester, find.text('Last 30 days'));
+      await _tap(tester, find.text('Last 90 days').last);
+      expect(api.queries['/users/admin/orders/tracking/stats']?.keys, containsAll(['from', 'to']));
+      expect(api.queries['/users/admin/orders/tracking/pharmacies']?.keys, containsAll(['from', 'to']));
+
+      // An overdue order opens in place, with its history.
+      await _tap(tester, find.text('#51'));
+      expect(find.text('Back to list'), findsOneWidget);
+    });
+  
+    testWidgets('Overdue Orders: always overdue and longest first, even after Clear filters', (tester) async {
+      final (_, api) = await _pump(tester, const OverdueOrdersScreen());
+      expect(api.queries['/users/admin/orders'], {'overdue': true, 'sort': 'longest_waiting', 'limit': 50, 'offset': 0});
+      expect(find.text('24.6 days'), findsOneWidget);
+      expect(find.text('Clear filters'), findsNothing, reason: 'nothing the admin chose to clear');
+
+      await _tap(tester, find.text('All').first);
+      await _tap(tester, find.text('Medical aid').last);
+      expect(api.queries['/users/admin/orders'], containsPair('waiting_on', 'medical_aid'));
+      await _tap(tester, find.text('Clear filters'));
+      expect(api.queries['/users/admin/orders'], {'overdue': true, 'sort': 'longest_waiting', 'limit': 50, 'offset': 0});
+
+      // The sidebar counts overdue orders, and Returns is gone.
+      expect(find.text('Returns'), findsNothing);
+      expect(find.text('Overdue Orders'), findsWidgets);
+      expect(find.byTooltip('5 orders overdue right now'), findsOneWidget);
+    });
+});
 }

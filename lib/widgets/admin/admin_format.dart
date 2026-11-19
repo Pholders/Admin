@@ -113,6 +113,24 @@ String percent(dynamic value) {
   return n == null ? '—' : '${formatNumber(n)}%';
 }
 
+/// A wait in hours, as the order tracking endpoints send it (`30.5`):
+/// `"45 min"`, `"30 h"`, or `"24.6 days"` from two days up.
+String formatHours(dynamic value) {
+  final h = numOf(value);
+  if (h == null) return '—';
+  if (h < 1) return '${(h * 60).round()} min';
+  if (h < 48) return '${h.round()} h';
+  return '${formatNumber(h / 24, decimals: 1)} days';
+}
+
+/// Who an order in progress is waiting on, from its `waiting_on`.
+String waitingOnLabel(dynamic value) => switch ('$value') {
+      'pharmacy' => 'Pharmacy',
+      'medical_aid' => 'Medical aid',
+      'patient' => 'Patient',
+      _ => value == null ? '—' : humanize('$value'),
+    };
+
 Map<String, dynamic> mapOf(dynamic value) =>
     value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
 

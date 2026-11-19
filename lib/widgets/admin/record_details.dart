@@ -20,25 +20,58 @@ const prescriptionStateColors = <String, Color>{
   'revoked': AppColors.danger,
 };
 
-Widget prescriptionStateBadge(dynamic state) =>
-    statusBadge(state, color: prescriptionStateColors['$state']);
+Widget prescriptionStateBadge(dynamic state) => statusBadge(state, color: prescriptionStateColors['$state']);
 
-Future<void> showOrderDetail(BuildContext context, Object id,
-        {Map<String, dynamic> row = const {}}) =>
+/// An order in progress is overdue once it has sat in its status longer than
+/// the backend allows (`is_overdue`). Finished orders never are.
+Widget overdueBadge() => statusBadge('overdue', color: AppColors.danger);
+
+/// How long an order has been in its current status and who it waits on,
+/// flagged when overdue. A finished order has no wait, so it shows "—".
+class OrderWaitCell extends StatelessWidget {
+  final Map<String, dynamic> order;
+  const OrderWaitCell(this.order, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final hours = order['hours_in_status'];
+    if (hours == null) return const CellText('—');
+    final overdue = order['is_overdue'] == true;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [
+          Flexible(
+            child: Text(formatHours(hours),
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: overdue ? AppColors.danger : AppColors.textPrimary)),
+          ),
+          if (overdue) ...[const SizedBox(width: 6), overdueBadge()],
+        ]),
+        const SizedBox(height: 2),
+        Text('Waiting on ${waitingOnLabel(order['waiting_on']).toLowerCase()}',
+            overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
+      ],
+    );
+  }
+}
+
+Future<void> showOrderDetail(BuildContext context, Object id, {Map<String, dynamic> row = const {}}) =>
     showAdminDetail(context, (_) => _OrderDetail(id: id, row: row));
 
-Future<void> showPaymentDetail(BuildContext context, Object id,
-        {Map<String, dynamic> row = const {}}) =>
+Future<void> showPaymentDetail(BuildContext context, Object id, {Map<String, dynamic> row = const {}}) =>
     showAdminDetail(context, (_) => _PaymentDetail(id: id, row: row));
 
-Future<void> showAppointmentDetail(BuildContext context, Object id,
-        {Map<String, dynamic> row = const {}}) =>
+Future<void> showAppointmentDetail(BuildContext context, Object id, {Map<String, dynamic> row = const {}}) =>
     showAdminDetail(context, (_) => _AppointmentDetail(id: id, row: row));
 
 /// Every open is written to the audit log with the admin's name, so this is
 /// only ever called from an explicit click.
-Future<void> showPrescriptionDetail(BuildContext context, Object id,
-        {Map<String, dynamic> row = const {}}) =>
+Future<void> showPrescriptionDetail(BuildContext context, Object id, {Map<String, dynamic> row = const {}}) =>
     showAdminDetail(context, (_) => _PrescriptionDetail(id: id, row: row));
 
 String _person(Map<String, dynamic> r, String prefix) {
@@ -81,6 +114,25 @@ class _OrderDetail extends StatelessWidget {
             s.statusBar,
             FactGrid([
               ('Status', statusBadge(r['status'])),
+              if (r['hours_in_status'] != null) ...[
+                (
+                  'In this status for',
+                  Row(children: [
+                    Flexible(
+                      child: Text(formatHours(r['hours_in_status']),
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: r['is_overdue'] == true ? AppColors.danger : AppColors.textPrimary)),
+                    ),
+                    if (r['is_overdue'] == true) ...[const SizedBox(width: 8), overdueBadge()],
+                  ]),
+                ),
+                FactGrid.text('Waiting on', waitingOnLabel(r['waiting_on'])),
+                FactGrid.text('Overdue after', formatHours(r['overdue_after_hours'])),
+              ],
+              FactGrid.text('In status since', formatDate(r['status_since'], withTime: true)),
               FactGrid.text('Payment type', humanize('${r['payment_type'] ?? ''}')),
               FactGrid.text('Fulfilment', humanize('${r['fulfillment_type'] ?? ''}')),
               FactGrid.text('Total', formatRand(r['total_amount'])),
@@ -98,8 +150,10 @@ class _OrderDetail extends StatelessWidget {
                 ),
               ),
               if (r['payment_id'] != null)
-                ('Payment', RecordLink('#${r['payment_id']}',
-                    onTap: () => showPaymentDetail(context, r['payment_id']))),
+                (
+                  'Payment',
+                  RecordLink('#${r['payment_id']}', onTap: () => showPaymentDetail(context, r['payment_id']))
+                ),
               if (r['stripe_payment_intent_id'] != null)
                 FactGrid.text('Stripe payment intent', r['stripe_payment_intent_id']),
               FactGrid.text('Created', formatDate(r['created_at'], withTime: true)),
@@ -107,8 +161,7 @@ class _OrderDetail extends StatelessWidget {
               FactGrid.text('Prepared', formatDate(r['prepared_at'], withTime: true)),
               FactGrid.text('Ready', formatDate(r['ready_at'], withTime: true)),
               FactGrid.text('Completed', formatDate(r['completed_at'], withTime: true)),
-              if (r['cancelled_at'] != null)
-                FactGrid.text('Cancelled', formatDate(r['cancelled_at'], withTime: true)),
+              if (r['cancelled_at'] != null) FactGrid.text('Cancelled', formatDate(r['cancelled_at'], withTime: true)),
             ]),
             for (final (label, key) in const [
               ('Pharmacy notes', 'pharmacy_notes'),
@@ -146,8 +199,7 @@ class _StatusTimeline extends StatelessWidget {
                   height: 10,
                   decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
                 ),
-                if (i < events.length - 1)
-                  Expanded(child: Container(width: 2, color: AppColors.divider)),
+                if (i < events.length - 1) Expanded(child: Container(width: 2, color: AppColors.divider)),
               ]),
             ),
             const SizedBox(width: 8),
@@ -168,13 +220,18 @@ class _StatusTimeline extends StatelessWidget {
                       formatDate(events[i]['created_at'], withTime: true),
                       if (events[i]['actor_type'] != null)
                         'by ${events[i]['actor_type']}${events[i]['actor_id'] == null ? '' : ' #${events[i]['actor_id']}'}',
+                      // How long the order stayed in this step; up to now
+                      // for the current one, none for a final status.
+                      if (events[i]['hours_in_status'] != null)
+                        i == events.length - 1
+                            ? '${formatHours(events[i]['hours_in_status'])} so far'
+                            : 'stayed ${formatHours(events[i]['hours_in_status'])}',
                     ].join(' · '),
                     style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
                   ),
                   if ('${events[i]['notes'] ?? ''}'.trim().isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    Text('${events[i]['notes']}',
-                        style: const TextStyle(fontSize: 12.5, color: AppColors.textPrimary)),
+                    Text('${events[i]['notes']}', style: const TextStyle(fontSize: 12.5, color: AppColors.textPrimary)),
                   ],
                 ]),
               ),
@@ -212,21 +269,25 @@ class _PaymentDetail extends StatelessWidget {
               ('Status', statusBadge(r['payment_status'])),
               FactGrid.text('Amount', formatRand(r['amount'])),
               FactGrid.text('Method', humanize('${r['payment_method'] ?? ''}')),
-              if (r['medical_aid_provider'] != null)
-                FactGrid.text('Medical aid', r['medical_aid_provider']),
+              if (r['medical_aid_provider'] != null) FactGrid.text('Medical aid', r['medical_aid_provider']),
               FactGrid.text('Patient', _person(r, 'patient')),
               FactGrid.text('Patient email', r['patient_email']),
               FactGrid.text('Doctor', _person(r, 'doctor')),
-              ('Appointment', RecordLink(apptId == null ? '—' : '#$apptId',
-                  onTap: apptId == null ? null : () => showAppointmentDetail(context, apptId))),
+              (
+                'Appointment',
+                RecordLink(apptId == null ? '—' : '#$apptId',
+                    onTap: apptId == null ? null : () => showAppointmentDetail(context, apptId))
+              ),
               FactGrid.text('Stripe payment intent', r['stripe_payment_intent_id']),
               FactGrid.text('Stripe transaction', r['stripe_transaction_id']),
               FactGrid.text('Created', formatDate(r['created_at'], withTime: true)),
               FactGrid.text('Updated', formatDate(r['updated_at'], withTime: true)),
             ]),
             if ('${r['receipt_url'] ?? ''}'.isNotEmpty)
-              _section('Receipt', SelectableText('${r['receipt_url']}',
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.primaryDark))),
+              _section(
+                  'Receipt',
+                  SelectableText('${r['receipt_url']}',
+                      style: const TextStyle(fontSize: 12.5, color: AppColors.primaryDark))),
             if ('${r['notes'] ?? ''}'.trim().isNotEmpty) _section('Notes', PlainTextBlock('${r['notes']}')),
           ]),
         );
@@ -265,11 +326,13 @@ class _AppointmentDetail extends StatelessWidget {
               FactGrid.text('Patient', _person(r, 'patient')),
               FactGrid.text('Patient email', r['patient_email']),
               FactGrid.text('Doctor', _person(r, 'doctor')),
-              FactGrid.text('Doctor accepted', r['doctor_accepted'] == null
-                  ? null
-                  : r['doctor_accepted'] == true
-                      ? 'Yes, ${formatDate(r['doctor_accepted_at'], withTime: true)}'
-                      : 'No'),
+              FactGrid.text(
+                  'Doctor accepted',
+                  r['doctor_accepted'] == null
+                      ? null
+                      : r['doctor_accepted'] == true
+                          ? 'Yes, ${formatDate(r['doctor_accepted_at'], withTime: true)}'
+                          : 'No'),
               FactGrid.text('Consultation fee', formatRand(r['consultation_fee'])),
               ('Payment status', statusBadge(r['payment_status'])),
               FactGrid.text('Payment method', humanize('${r['payment_method'] ?? ''}')),
@@ -301,7 +364,8 @@ class _AppointmentDetail extends StatelessWidget {
                   // Opening one is audit-logged; it happens on the click only.
                   onRowTap: (p) => showPrescriptionDetail(context, p['id'], row: p),
                   columns: [
-                    RecordColumn('Prescription', width: 180,
+                    RecordColumn('Prescription',
+                        width: 180,
                         cell: (p) => CellText('${p['prescription_number'] ?? '#${p['id']}'}', strong: true)),
                     const RecordColumn('Signature', field: 'signature_status', width: 130),
                     RecordColumn('Created', width: 160, cell: (p) => dateCell(p['created_at'])),
@@ -356,20 +420,27 @@ class _PrescriptionDetail extends StatelessWidget {
               FactGrid.text('Medicines', r['item_count']),
               FactGrid.text('Patient', _person(r, 'patient')),
               FactGrid.text('Doctor', _person(r, 'doctor')),
-              ('Appointment', RecordLink(apptId == null ? '—' : '#$apptId',
-                  onTap: apptId == null ? null : () => showAppointmentDetail(context, apptId))),
+              (
+                'Appointment',
+                RecordLink(apptId == null ? '—' : '#$apptId',
+                    onTap: apptId == null ? null : () => showAppointmentDetail(context, apptId))
+              ),
               FactGrid.text('Signed', formatDate(r['signed_at'], withTime: true)),
               FactGrid.text('Created', formatDate(r['created_at'], withTime: true)),
-              FactGrid.text('Claimed', r['claimed'] == true
-                  ? '${claimedBy ?? 'Yes'}, ${formatDate(r['claimed_at'], withTime: true)}'
-                  : 'No'),
+              FactGrid.text(
+                  'Claimed',
+                  r['claimed'] == true
+                      ? '${claimedBy ?? 'Yes'}, ${formatDate(r['claimed_at'], withTime: true)}'
+                      : 'No'),
               if (r['claimed'] == true)
                 FactGrid.text('Claim expires', formatDate(r['claim_expires_at'], withTime: true)),
-              FactGrid.text('Dispensed', r['is_dispensed'] == true
-                  ? [if (dispensedBy != null) '$dispensedBy', formatDate(r['dispensed_at'], withTime: true)].join(', ')
-                  : 'No'),
-              if (r['is_revoked'] == true)
-                FactGrid.text('Revoked', formatDate(r['revoked_at'], withTime: true)),
+              FactGrid.text(
+                  'Dispensed',
+                  r['is_dispensed'] == true
+                      ? [if (dispensedBy != null) '$dispensedBy', formatDate(r['dispensed_at'], withTime: true)]
+                          .join(', ')
+                      : 'No'),
+              if (r['is_revoked'] == true) FactGrid.text('Revoked', formatDate(r['revoked_at'], withTime: true)),
             ]),
             if (r['is_revoked'] == true && '${r['revoke_reason'] ?? ''}'.trim().isNotEmpty)
               _section('Revoke reason', PlainTextBlock('${r['revoke_reason']}')),
@@ -410,8 +481,7 @@ class PlainTextBlock extends StatelessWidget {
         color: AppColors.contentBackground.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: SelectableText(text,
-          style: const TextStyle(fontSize: 13, height: 1.5, color: AppColors.textPrimary)),
+      child: SelectableText(text, style: const TextStyle(fontSize: 13, height: 1.5, color: AppColors.textPrimary)),
     );
   }
 }

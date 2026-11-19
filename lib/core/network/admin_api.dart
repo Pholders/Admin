@@ -179,6 +179,17 @@ class AdminApi {
       get('/users/admin/orders', query: query);
   Future<dynamic> getOrder(Object id) => get('/users/admin/orders/$id');
 
+  /// Orders in progress right now, per status and per who they wait on, with
+  /// overdue counts; plus outcomes for orders created in `from`–`to`
+  /// (default: the last 30 days). Filters: `pharmacy_id`, `from`, `to`.
+  Future<dynamic> orderTrackingStats(Map<String, dynamic> query) =>
+      get('/users/admin/orders/tracking/stats', query: query);
+
+  /// One row per pharmacy, most overdue first. Filters: `from`, `to`,
+  /// `limit`, `offset`.
+  Future<dynamic> orderTrackingPharmacies(Map<String, dynamic> query) =>
+      get('/users/admin/orders/tracking/pharmacies', query: query);
+
   /// Also returns `totals.by_status` over the whole filtered set.
   Future<dynamic> listPayments(Map<String, dynamic> query) =>
       get('/users/admin/payments', query: query);

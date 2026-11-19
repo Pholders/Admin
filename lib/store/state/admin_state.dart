@@ -52,6 +52,13 @@ enum AdminResource {
   // limit/offset, passed through as the query string)
   orders,
   payments,
+
+  // Order tracking (pickup flow). [overdueOrders] is `GET /orders` again,
+  // filtered to overdue and longest waiting first; it has its own slot so
+  // it doesn't fight the All Orders screen over [orders].
+  orderTrackingStats,
+  orderTrackingPharmacies,
+  overdueOrders,
   appointments,
   prescriptions,
 

@@ -6,6 +6,7 @@ import 'account_screen.dart';
 import 'admin_tools_screen.dart';
 import 'agreements_screen.dart';
 import 'all_orders_screen.dart';
+import 'overdue_orders_screen.dart';
 import 'appointments_screen.dart';
 import 'prescriptions_screen.dart';
 import 'reviews_screen.dart';
@@ -22,7 +23,6 @@ import 'help_center_screen.dart';
 import 'patients_screen.dart';
 import 'payment_gateway_screen.dart';
 import 'pharmacies_screen.dart';
-import 'returns_screen.dart';
 import 'settings_screen.dart';
 import 'tracking_screen.dart';
 
@@ -45,8 +45,8 @@ class RootShell extends StatelessWidget {
             return const PatientsScreen();
           case 'all_orders':
             return const AllOrdersScreen();
-          case 'returns':
-            return const ReturnsScreen();
+          case 'overdue_orders':
+            return const OverdueOrdersScreen();
           case 'doctors':
             return const DoctorsScreen();
           case 'pharmacies':
